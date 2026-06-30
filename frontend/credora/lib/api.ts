@@ -184,6 +184,8 @@ export interface AdminReportsSummary {
   loanDistribution: { type: string; amount: number; count: number }[];
   creditScoreDistribution: { range: string; count: number }[];
   defaultRateTrend: { month: string; defaultRate: number }[];
+  activeLoans?: number;
+  atRiskLoans?: number;
 }
 
 export interface PaymentResponse {

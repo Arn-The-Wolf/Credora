@@ -10,9 +10,14 @@ import { Badge } from "@/components/ui/badge"
 import { Search, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, Bell, FileText } from "lucide-react"
 import Layout from "@/components/layout"
 import { api, ApplicationResponse } from "@/lib/api"
+import { formatKES } from "@/lib/format"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
 export default function LoanTracker() {
-  const [searchQuery, setSearchQuery] = useState("")
+  const searchParams = useSearchParams()
+  const initialSearch = searchParams.get("search") ?? ""
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [activeTab, setActiveTab] = useState("all")
   const [applications, setApplications] = useState<ApplicationResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,9 +71,11 @@ export default function LoanTracker() {
                 <p className="mt-1 text-blue-100">Track the status of your loan applications in real-time</p>
               </div>
               <div className="mt-4 md:mt-0">
-                <Button className="bg-white text-[#0a1525] hover:bg-blue-100">
+                <Button asChild className="bg-white text-[#0a1525] hover:bg-blue-100">
+                  <Link href="/dashboard/apply-for-loan">
                   <FileText className="h-4 w-4 mr-2" />
                   New Application
+                  </Link>
                 </Button>
               </div>
             </div>
@@ -153,7 +160,7 @@ export default function LoanTracker() {
                         </Badge>
                       </CardTitle>
                       <CardDescription>
-                        Application ID: {application.referenceId} | ${Number(application.amount).toLocaleString()}
+                        Application ID: {application.referenceId} | {formatKES(application.amount)}
                       </CardDescription>
                     </div>
                     <div className="text-right">
@@ -301,19 +308,25 @@ export default function LoanTracker() {
                     {/* Action buttons */}
                     <div className="flex justify-end space-x-2 mt-4">
                       {application.status === "approved" && (
-                        <Button className="bg-[#0a1525] hover:bg-[#1a2b45]">
+                        <Button asChild className="bg-[#0a1525] hover:bg-[#1a2b45]">
+                          <Link href={application.loanId ? "/dashboard/manage-loans" : "/dashboard/loan-tracker"}>
                           View Loan Details
                           <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
                         </Button>
                       )}
                       {(application.status === "pending" || application.status === "processing") && (
-                        <Button className="bg-[#0a1525] hover:bg-[#1a2b45]">
+                        <Button asChild className="bg-[#0a1525] hover:bg-[#1a2b45]">
+                          <Link href="/dashboard/loan-tracker">
                           Track Updates
                           <Bell className="h-4 w-4 ml-2" />
+                          </Link>
                         </Button>
                       )}
                       {application.status === "rejected" && (
-                        <Button className="bg-[#0a1525] hover:bg-[#1a2b45]">Apply Again</Button>
+                        <Button asChild className="bg-[#0a1525] hover:bg-[#1a2b45]">
+                          <Link href="/dashboard/apply-for-loan">Apply Again</Link>
+                        </Button>
                       )}
                     </div>
                   </div>

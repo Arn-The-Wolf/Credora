@@ -18,6 +18,8 @@ public class ReportDtos {
         private List<LoanTypeDistribution> loanDistribution;
         private List<CreditScoreBucket> creditScoreDistribution;
         private List<MonthlyPerformance> defaultRateTrend;
+        private long activeLoans;
+        private long atRiskLoans;
         public BigDecimal getTotalLoanVolume() { return totalLoanVolume; }
         public void setTotalLoanVolume(BigDecimal totalLoanVolume) { this.totalLoanVolume = totalLoanVolume; }
         public double getApprovalRate() { return approvalRate; }
@@ -42,6 +44,10 @@ public class ReportDtos {
         public void setCreditScoreDistribution(List<CreditScoreBucket> creditScoreDistribution) { this.creditScoreDistribution = creditScoreDistribution; }
         public List<MonthlyPerformance> getDefaultRateTrend() { return defaultRateTrend; }
         public void setDefaultRateTrend(List<MonthlyPerformance> defaultRateTrend) { this.defaultRateTrend = defaultRateTrend; }
+        public long getActiveLoans() { return activeLoans; }
+        public void setActiveLoans(long activeLoans) { this.activeLoans = activeLoans; }
+        public long getAtRiskLoans() { return atRiskLoans; }
+        public void setAtRiskLoans(long atRiskLoans) { this.atRiskLoans = atRiskLoans; }
     }
 
     public static class MonthlyPerformance {

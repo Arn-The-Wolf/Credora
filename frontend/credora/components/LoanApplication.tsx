@@ -34,6 +34,7 @@ import {
   formatCurrency,
   COMMON_APPLICANT_FIELDS,
 } from "@/lib/loan-types"
+import { formatKES } from "@/lib/format"
 
 const formSchema = z.object({
   loanType: z.string().min(1, "Select a loan type"),
@@ -635,9 +636,9 @@ export default function LoanApplication() {
                               {[
                                 ["Loan Type", loanConfig?.name],
                                 ["Purpose", form.getValues("purpose")],
-                                ["Amount", `$${form.getValues("amount")}`],
+                                ["Amount", formatKES(form.getValues("amount"))],
                                 ["Term", `${form.getValues("term")} months`],
-                                ["Monthly Income", `$${form.getValues("income")}`],
+                                ["Monthly Income", formatKES(form.getValues("income"))],
                                 ["Employment", form.getValues("employment")],
                               ].map(([label, value]) => (
                                 <div key={label} className="flex justify-between text-sm border-b pb-2">

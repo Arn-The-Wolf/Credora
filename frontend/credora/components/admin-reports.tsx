@@ -19,6 +19,17 @@ import {
 } from "lucide-react"
 import AdminLayout from "@/components/admin-layout"
 import { api, AdminReportsSummary } from "@/lib/api"
+import { formatKES } from "@/lib/format"
+
+const CREDIT_LABELS: Record<string, string> = {
+  "300-579": "Poor",
+  "580-629": "Fair",
+  "630-689": "Good",
+  "690-719": "Very Good",
+  "720-850": "Excellent",
+}
+
+const CREDIT_COLORS = ["bg-red-50", "bg-yellow-50", "bg-blue-50", "bg-green-50", "bg-emerald-50"]
 
 export default function AdminReports() {
   const [timeRange, setTimeRange] = useState("month")
@@ -57,14 +68,16 @@ export default function AdminReports() {
 
   const reportMetrics = {
     totalLoanAmount: Number(reports?.totalLoanVolume ?? 0),
-    amountTrend: 0,
-    approvalRate: reports?.approvalRate ?? 0,
-    approvalTrend: 0,
+    approvalRate: Math.round(reports?.approvalRate ?? 0),
     averageInterestRate: reports?.averageInterestRate ?? 0,
-    rateTrend: 0,
     defaultRate: reports?.defaultRate ?? 0,
-    defaultTrend: 0,
+    activeLoans: reports?.activeLoans ?? 0,
+    atRiskLoans: reports?.atRiskLoans ?? 0,
+    totalApplications: reports?.totalApplications ?? 0,
+    pendingApplications: reports?.pendingApplications ?? 0,
   }
+
+  const totalDistributionAmount = loanDistributionData.reduce((s, d) => s + d.value, 0)
 
   if (loading) {
     return (
@@ -110,22 +123,10 @@ export default function AdminReports() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm text-gray-500">Total Loan Amount</p>
-                  <p className="text-2xl font-bold">${(reportMetrics.totalLoanAmount / 1000000).toFixed(2)}M</p>
-                </div>
-                <div
-                  className={`flex items-center text-sm ${reportMetrics.amountTrend > 0 ? "text-green-500" : "text-red-500"}`}
-                >
-                  {reportMetrics.amountTrend > 0 ? (
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(reportMetrics.amountTrend)}%
+                  <p className="text-2xl font-bold">{formatKES(reportMetrics.totalLoanAmount)}</p>
                 </div>
               </div>
-              <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-                <span>Since last period</span>
-              </div>
+              <div className="mt-4 text-xs text-gray-500">From {reportMetrics.totalApplications} applications</div>
             </CardContent>
           </Card>
 
@@ -136,20 +137,8 @@ export default function AdminReports() {
                   <p className="text-sm text-gray-500">Approval Rate</p>
                   <p className="text-2xl font-bold">{reportMetrics.approvalRate}%</p>
                 </div>
-                <div
-                  className={`flex items-center text-sm ${reportMetrics.approvalTrend > 0 ? "text-green-500" : "text-red-500"}`}
-                >
-                  {reportMetrics.approvalTrend > 0 ? (
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(reportMetrics.approvalTrend)}%
-                </div>
               </div>
-              <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-                <span>Since last period</span>
-              </div>
+              <div className="mt-4 text-xs text-gray-500">{reports?.approvedApplications ?? 0} approved</div>
             </CardContent>
           </Card>
 
@@ -160,20 +149,8 @@ export default function AdminReports() {
                   <p className="text-sm text-gray-500">Average Interest Rate</p>
                   <p className="text-2xl font-bold">{reportMetrics.averageInterestRate}%</p>
                 </div>
-                <div
-                  className={`flex items-center text-sm ${reportMetrics.rateTrend < 0 ? "text-green-500" : "text-red-500"}`}
-                >
-                  {reportMetrics.rateTrend < 0 ? (
-                    <TrendingDown className="h-4 w-4 mr-1" />
-                  ) : (
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(reportMetrics.rateTrend)}%
-                </div>
               </div>
-              <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-                <span>Since last period</span>
-              </div>
+              <div className="mt-4 text-xs text-gray-500">Portfolio average APR</div>
             </CardContent>
           </Card>
 
@@ -182,22 +159,10 @@ export default function AdminReports() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm text-gray-500">Default Rate</p>
-                  <p className="text-2xl font-bold">{reportMetrics.defaultRate}%</p>
-                </div>
-                <div
-                  className={`flex items-center text-sm ${reportMetrics.defaultTrend < 0 ? "text-green-500" : "text-red-500"}`}
-                >
-                  {reportMetrics.defaultTrend < 0 ? (
-                    <TrendingDown className="h-4 w-4 mr-1" />
-                  ) : (
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(reportMetrics.defaultTrend)}%
+                  <p className="text-2xl font-bold">{reportMetrics.defaultRate.toFixed(1)}%</p>
                 </div>
               </div>
-              <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-                <span>Since last period</span>
-              </div>
+              <div className="mt-4 text-xs text-gray-500">{reportMetrics.atRiskLoans} delinquent loans</div>
             </CardContent>
           </Card>
         </div>
@@ -309,7 +274,7 @@ export default function AdminReports() {
                       data={loanDistributionData}
                       categories={["value"]}
                       colors={["#3b82f6"]}
-                      valueFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                      valueFormatter={(value) => formatKES(value)}
                       showLegend={false}
                       showXAxis={true}
                       showYAxis={true}
@@ -320,56 +285,25 @@ export default function AdminReports() {
                 <div className="mt-6 border rounded-lg p-4">
                   <h3 className="font-medium text-lg mb-4">Loan Type Distribution</h3>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
-                        <span>Mortgage</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="font-medium mr-2">$3,500,000</span>
-                        <span className="text-gray-500">(52.6%)</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                        <span>Business</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="font-medium mr-2">$1,200,000</span>
-                        <span className="text-gray-500">(18.0%)</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
-                        <span>Personal</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="font-medium mr-2">$850,000</span>
-                        <span className="text-gray-500">(12.8%)</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
-                        <span>Auto</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="font-medium mr-2">$650,000</span>
-                        <span className="text-gray-500">(9.8%)</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                        <span>Education</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="font-medium mr-2">$450,000</span>
-                        <span className="text-gray-500">(6.8%)</span>
-                      </div>
-                    </div>
+                    {loanDistributionData.filter((d) => d.value > 0).map((item, i) => {
+                      const pct = totalDistributionAmount > 0 ? ((item.value / totalDistributionAmount) * 100).toFixed(1) : "0"
+                      const colors = ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-yellow-500", "bg-red-500"]
+                      return (
+                        <div key={item.name} className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className={`w-3 h-3 rounded-full ${colors[i % colors.length]} mr-2`}></div>
+                            <span>{item.name}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className="font-medium mr-2">{formatKES(item.value)}</span>
+                            <span className="text-gray-500">({pct}%)</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {loanDistributionData.every((d) => d.value === 0) && (
+                      <p className="text-sm text-gray-500">No loan distribution data yet.</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -412,31 +346,13 @@ export default function AdminReports() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
-                  <div className="border rounded-lg p-4 bg-red-50">
-                    <div className="text-sm text-gray-700">Poor</div>
-                    <div className="text-lg font-bold">45</div>
-                    <div className="text-xs text-gray-500">300-579</div>
-                  </div>
-                  <div className="border rounded-lg p-4 bg-yellow-50">
-                    <div className="text-sm text-gray-700">Fair</div>
-                    <div className="text-lg font-bold">85</div>
-                    <div className="text-xs text-gray-500">580-669</div>
-                  </div>
-                  <div className="border rounded-lg p-4 bg-blue-50">
-                    <div className="text-sm text-gray-700">Good</div>
-                    <div className="text-lg font-bold">120</div>
-                    <div className="text-xs text-gray-500">670-739</div>
-                  </div>
-                  <div className="border rounded-lg p-4 bg-green-50">
-                    <div className="text-sm text-gray-700">Very Good</div>
-                    <div className="text-lg font-bold">95</div>
-                    <div className="text-xs text-gray-500">740-799</div>
-                  </div>
-                  <div className="border rounded-lg p-4 bg-emerald-50">
-                    <div className="text-sm text-gray-700">Excellent</div>
-                    <div className="text-lg font-bold">55</div>
-                    <div className="text-xs text-gray-500">800-850</div>
-                  </div>
+                  {creditScoreData.map((bucket, i) => (
+                    <div key={bucket.name} className={`border rounded-lg p-4 ${CREDIT_COLORS[i] ?? "bg-gray-50"}`}>
+                      <div className="text-sm text-gray-700">{CREDIT_LABELS[bucket.name] ?? bucket.name}</div>
+                      <div className="text-lg font-bold">{bucket.value}</div>
+                      <div className="text-xs text-gray-500">{bucket.name}</div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -480,24 +396,22 @@ export default function AdminReports() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                   <div className="border rounded-lg p-4">
                     <div className="text-sm text-gray-500">Current Default Rate</div>
-                    <div className="text-2xl font-bold">2.1%</div>
-                    <div className="text-sm text-green-500 flex items-center">
-                      <TrendingDown className="h-4 w-4 mr-1" />
-                      -0.3% from previous period
-                    </div>
+                    <div className="text-2xl font-bold">{reportMetrics.defaultRate.toFixed(1)}%</div>
+                    <div className="text-sm text-gray-500 mt-1">Across {reportMetrics.activeLoans} active loans</div>
                   </div>
                   <div className="border rounded-lg p-4">
                     <div className="text-sm text-gray-500">At-Risk Loans</div>
-                    <div className="text-2xl font-bold">18</div>
-                    <div className="text-sm text-gray-500">4.2% of active loans</div>
+                    <div className="text-2xl font-bold">{reportMetrics.atRiskLoans}</div>
+                    <div className="text-sm text-gray-500">
+                      {reportMetrics.activeLoans > 0
+                        ? `${((reportMetrics.atRiskLoans / reportMetrics.activeLoans) * 100).toFixed(1)}% of active`
+                        : "No active loans"}
+                    </div>
                   </div>
                   <div className="border rounded-lg p-4">
-                    <div className="text-sm text-gray-500">Average Days Delinquent</div>
-                    <div className="text-2xl font-bold">12.5</div>
-                    <div className="text-sm text-red-500 flex items-center">
-                      <TrendingUp className="h-4 w-4 mr-1" />
-                      +1.2 days from previous period
-                    </div>
+                    <div className="text-sm text-gray-500">Pending Review</div>
+                    <div className="text-2xl font-bold">{reportMetrics.pendingApplications}</div>
+                    <div className="text-sm text-gray-500">Applications in queue</div>
                   </div>
                 </div>
               </CardContent>

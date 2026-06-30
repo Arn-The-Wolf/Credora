@@ -18,6 +18,59 @@ import {
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import type { ApplicationResponse } from "@/lib/api"
+import { formatKES } from "@/lib/format"
+
+function monthlyPayment(principal: number, apr: number, months: number): number {
+  const r = apr / 100 / 12
+  if (!principal || !months) return 0
+  if (r === 0) return principal / months
+  return (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1)
+}
+
+function buildRecommendations(application?: ApplicationResponse | null) {
+  if (!application) return []
+  const items: { icon: "check" | "alert"; title: string; text: string }[] = []
+  const dti = application.debtToIncome ?? 0
+  const score = application.aiCreditScore ?? application.existingCreditScore ?? 0
+  const rec = application.aiRecommendation ?? application.scoring?.recommendation
+
+  if (dti > 0.4) {
+    items.push({
+      icon: "alert",
+      title: "High debt-to-income ratio",
+      text: `Your DTI is ${(dti * 100).toFixed(0)}%. Paying down existing debt could improve approval odds and rates.`,
+    })
+  }
+  if (score > 0 && score < 650) {
+    items.push({
+      icon: "alert",
+      title: "Build credit score",
+      text: `Your score of ${score} is below our preferred range. On-time M-Pesa and utility payments help alternative scoring.`,
+    })
+  }
+  if (rec === "REVIEW") {
+    items.push({
+      icon: "alert",
+      title: "Manual review recommended",
+      text: "Our AI flagged this application for institution review. An officer may contact you for additional documents.",
+    })
+  }
+  if (application.termMonths && application.termMonths > 48) {
+    items.push({
+      icon: "check",
+      title: "Consider a shorter term",
+      text: `A term under 48 months may reduce total interest on your ${formatKES(application.amount)} loan.`,
+    })
+  }
+  if (items.length === 0) {
+    items.push({
+      icon: "check",
+      title: "Strong application profile",
+      text: application.aiSummary || "Your financial signals are within Credora's lending guidelines.",
+    })
+  }
+  return items
+}
 
 interface AIInsightsProps {
   application?: ApplicationResponse | null
@@ -26,32 +79,29 @@ interface AIInsightsProps {
 
 export default function AIInsights({ application, onBack }: AIInsightsProps) {
   const scoring = application?.scoring
-  const approvalPct = Math.round((application?.approvalProbability ?? scoring?.approvalProbability ?? 0.87) * 100)
-  const creditScore = application?.aiCreditScore ?? scoring?.creditScore ?? 720
-  const recommended = application?.recommendedAmount ?? scoring?.recommendedAmount ?? 20000
-  const apr = application?.estimatedApr ?? scoring?.estimatedApr ?? 5.2
-  const summary = application?.aiSummary ?? scoring?.summary ?? "AI assessment complete."
+  const approvalPct = Math.round((application?.approvalProbability ?? scoring?.approvalProbability ?? 0) * 100)
+  const creditScore = application?.aiCreditScore ?? scoring?.creditScore ?? 0
+  const recommended = application?.recommendedAmount ?? scoring?.recommendedAmount ?? Number(application?.amount ?? 0)
+  const apr = application?.estimatedApr ?? scoring?.estimatedApr ?? 0
+  const summary = application?.aiSummary ?? scoring?.summary ?? "AI assessment will appear after scoring completes."
+  const termMonths = application?.termMonths ?? 60
+  const monthly = monthlyPayment(Number(recommended), apr, termMonths)
+  const incomePct = application?.monthlyIncome
+    ? Math.round((monthly / Number(application.monthlyIncome)) * 100)
+    : null
 
-  const successPredictionData = scoring?.factors?.length
-    ? scoring.factors.map((f) => ({ name: f.name, value: f.value }))
-    : [
-        { name: "Credit Score", value: 85 },
-        { name: "Income", value: 92 },
-        { name: "Debt-to-Income", value: 78 },
-        { name: "Employment", value: 95 },
-        { name: "Mobile Money", value: 80 },
-        { name: "Utility Payments", value: 88 },
-      ]
+  const successPredictionData = (scoring?.factors?.length ? scoring.factors : application?.scoring?.factors ?? []).map((f) => ({
+    name: f.name,
+    value: f.value,
+  }))
 
-  const loanAmountRecommendationData = scoring?.amountOptions?.length
-    ? scoring.amountOptions.map((o) => ({ name: o.name, value: o.value }))
-    : [
-        { name: "10k", value: 40 },
-        { name: "15k", value: 65 },
-        { name: "20k", value: 85 },
-        { name: "25k", value: 75 },
-        { name: "30k", value: 55 },
-      ]
+  const loanAmountRecommendationData = (scoring?.amountOptions?.length ? scoring.amountOptions : []).map((o) => ({
+    name: o.name,
+    value: o.value,
+  }))
+
+  const factorCards = successPredictionData.length > 0 ? successPredictionData : []
+  const recommendations = buildRecommendations(application)
 
   const isApproved = application?.status === "approved"
   const isRejected = application?.status === "rejected"
@@ -123,7 +173,7 @@ export default function AIInsights({ application, onBack }: AIInsightsProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">${Number(recommended).toLocaleString()}</div>
+                  <div className="text-3xl font-bold">{formatKES(recommended)}</div>
                   <p className="text-sm text-gray-500 mt-1">Based on your income</p>
                   <div className="flex items-center mt-4 text-sm">
                     <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
@@ -144,7 +194,9 @@ export default function AIInsights({ application, onBack }: AIInsightsProps) {
                   <p className="text-sm text-gray-500 mt-1">Estimated APR</p>
                   <div className="flex items-center mt-4 text-sm">
                     <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
-                    <span className="text-blue-500 font-medium">Better than average (6.8%)</span>
+                    <span className="text-blue-500 font-medium">
+                      {apr > 0 ? `Estimated APR ${apr}%` : "APR pending scoring"}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -161,11 +213,7 @@ export default function AIInsights({ application, onBack }: AIInsightsProps) {
                     <Brain className="h-5 w-5 mr-3 text-purple-500 mt-0.5" />
                     <div>
                       <h4 className="font-medium">Overall Assessment</h4>
-                      <p className="text-gray-600 mt-1">
-                        Your loan application shows a strong likelihood of approval with an 87% success probability.
-                        Your credit score, income level, and employment history are all positive factors in your
-                        application.
-                      </p>
+                      <p className="text-gray-600 mt-1">{summary}</p>
                     </div>
                   </div>
 
@@ -174,8 +222,8 @@ export default function AIInsights({ application, onBack }: AIInsightsProps) {
                     <div>
                       <h4 className="font-medium">Strengths</h4>
                       <p className="text-gray-600 mt-1">
-                        Your stable employment history and good credit score are significant strengths. Your
-                        debt-to-income ratio is within acceptable limits, which positively impacts your application.
+                        Credit score {creditScore || "—"} · Approval probability {approvalPct}% · AI recommendation:{" "}
+                        {application?.aiRecommendation ?? scoring?.recommendation ?? "PENDING"}.
                       </p>
                     </div>
                   </div>
@@ -185,8 +233,10 @@ export default function AIInsights({ application, onBack }: AIInsightsProps) {
                     <div>
                       <h4 className="font-medium">Areas for Improvement</h4>
                       <p className="text-gray-600 mt-1">
-                        Reducing your existing debt could further improve your application. Consider a slightly shorter
-                        loan term for better interest rates.
+                        {application?.debtToIncome
+                          ? `Debt-to-income is ${(application.debtToIncome * 100).toFixed(0)}%.`
+                          : "Alternative data (M-Pesa, utilities) supplements traditional credit signals."}
+                        {incomePct ? ` Estimated payment is ${incomePct}% of monthly income.` : ""}
                       </p>
                     </div>
                   </div>
@@ -229,52 +279,21 @@ export default function AIInsights({ application, onBack }: AIInsightsProps) {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <div className="font-medium">Credit Score</div>
-                        <div className="text-green-500 font-medium">85%</div>
-                      </div>
-                      <Progress value={85} className="h-2" />
-                      <p className="text-sm text-gray-500 mt-2">
-                        Your credit score is in the "Very Good" range, which significantly increases your approval
-                        chances.
-                      </p>
+                  {factorCards.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      {factorCards.map((factor) => (
+                        <div key={factor.name} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="font-medium">{factor.name}</div>
+                            <div className="text-green-500 font-medium">{factor.value}%</div>
+                          </div>
+                          <Progress value={factor.value} className="h-2" />
+                        </div>
+                      ))}
                     </div>
-
-                    <div className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <div className="font-medium">Income</div>
-                        <div className="text-green-500 font-medium">92%</div>
-                      </div>
-                      <Progress value={92} className="h-2" />
-                      <p className="text-sm text-gray-500 mt-2">
-                        Your income level is well above the minimum requirement for this loan amount.
-                      </p>
-                    </div>
-
-                    <div className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <div className="font-medium">Debt-to-Income</div>
-                        <div className="text-green-500 font-medium">78%</div>
-                      </div>
-                      <Progress value={78} className="h-2" />
-                      <p className="text-sm text-gray-500 mt-2">
-                        Your debt-to-income ratio is within acceptable limits but could be improved.
-                      </p>
-                    </div>
-
-                    <div className="border rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <div className="font-medium">Employment</div>
-                        <div className="text-green-500 font-medium">95%</div>
-                      </div>
-                      <Progress value={95} className="h-2" />
-                      <p className="text-sm text-gray-500 mt-2">
-                        Your stable employment history is a strong positive factor in your application.
-                      </p>
-                    </div>
-                  </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Factor breakdown available after AI scoring completes.</p>
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="border-t pt-4">
@@ -307,52 +326,40 @@ export default function AIInsights({ application, onBack }: AIInsightsProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="border rounded-lg p-4">
                     <h3 className="font-medium text-lg mb-2">Optimal Loan Amount</h3>
-                    <div className="text-3xl font-bold text-green-500">$20,000</div>
+                    <div className="text-3xl font-bold text-green-500">{formatKES(recommended)}</div>
                     <p className="text-sm text-gray-500 mt-2">
-                      Based on your income, expenses, and credit profile, we recommend a loan amount of $20,000. This
-                      amount balances your needs with a manageable repayment schedule.
+                      AI-recommended amount based on income, alternative data, and {application?.loanType ?? "loan"} profile.
                     </p>
                   </div>
 
                   <div className="border rounded-lg p-4">
                     <h3 className="font-medium text-lg mb-2">Monthly Payment</h3>
-                    <div className="text-3xl font-bold">$386</div>
+                    <div className="text-3xl font-bold">{formatKES(monthly)}</div>
                     <p className="text-sm text-gray-500 mt-2">
-                      Estimated monthly payment for a $20,000 loan at 5.2% APR over 60 months. This represents
-                      approximately 18% of your monthly income.
+                      Estimated for {formatKES(recommended)} at {apr}% APR over {termMonths} months.
+                      {incomePct ? ` About ${incomePct}% of monthly income.` : ""}
                     </p>
                   </div>
                 </div>
 
+                {loanAmountRecommendationData.length > 0 && (
                 <div className="mt-6 border rounded-lg p-4">
-                  <h3 className="font-medium text-lg mb-2">Income-Based Analysis</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                        <span>Recommended (18% of income)</span>
+                  <h3 className="font-medium text-lg mb-2">Amount Fit Analysis</h3>
+                  <div className="space-y-3">
+                    {loanAmountRecommendationData.slice(0, 5).map((opt) => (
+                      <div key={opt.name} className="flex items-center justify-between">
+                        <span>{opt.name}</span>
+                        <span className="font-medium">{opt.value}% fit</span>
                       </div>
-                      <span className="font-medium">$20,000</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
-                        <span>Maximum Safe (25% of income)</span>
-                      </div>
-                      <span className="font-medium">$28,000</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                        <span>Not Recommended (&gt;30% of income)</span>
-                      </div>
-                      <span className="font-medium">$35,000+</span>
-                    </div>
+                    ))}
                   </div>
                 </div>
+                )}
               </CardContent>
               <CardFooter className="border-t pt-4">
-                <Button className="w-full bg-[#0a1525] hover:bg-[#1a2b45]">Apply for $20,000</Button>
+                <Button className="w-full bg-[#0a1525] hover:bg-[#1a2b45]" onClick={() => onBack?.()}>
+                  Back to Application
+                </Button>
               </CardFooter>
             </Card>
           </TabsContent>
@@ -365,60 +372,21 @@ export default function AIInsights({ application, onBack }: AIInsightsProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-start">
-                      <CircleCheck className="h-5 w-5 mr-3 text-green-500 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Consider a 48-month term</h4>
-                        <p className="text-gray-600 mt-1">
-                          Reducing your loan term from 60 to 48 months could lower your interest rate by 0.3%. While
-                          your monthly payment would increase to $442, you would save $1,240 in interest over the life
-                          of the loan.
-                        </p>
+                  {recommendations.map((rec, i) => (
+                    <div key={i} className="border rounded-lg p-4">
+                      <div className="flex items-start">
+                        {rec.icon === "check" ? (
+                          <CircleCheck className="h-5 w-5 mr-3 text-green-500 mt-0.5" />
+                        ) : (
+                          <AlertCircle className="h-5 w-5 mr-3 text-amber-500 mt-0.5" />
+                        )}
+                        <div>
+                          <h4 className="font-medium">{rec.title}</h4>
+                          <p className="text-gray-600 mt-1">{rec.text}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-start">
-                      <CircleCheck className="h-5 w-5 mr-3 text-green-500 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Pay down existing credit card debt</h4>
-                        <p className="text-gray-600 mt-1">
-                          Reducing your credit card debt by $2,000 would improve your debt-to-income ratio and could
-                          increase your approval probability by 5-7%. This would also potentially qualify you for a
-                          better interest rate.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-start">
-                      <CircleCheck className="h-5 w-5 mr-3 text-green-500 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Add a co-signer</h4>
-                        <p className="text-gray-600 mt-1">
-                          While your application has a high probability of approval, adding a co-signer with excellent
-                          credit could further improve your terms and potentially increase your maximum loan amount if
-                          needed.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-start">
-                      <AlertCircle className="h-5 w-5 mr-3 text-amber-500 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">Avoid new credit inquiries</h4>
-                        <p className="text-gray-600 mt-1">
-                          Multiple credit inquiries in a short period can temporarily lower your credit score. We
-                          recommend avoiding new credit applications until after your loan is approved.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </CardContent>
               <CardFooter className="border-t pt-4 flex justify-between">

@@ -49,6 +49,7 @@ public class ReportService {
                 .orElse(0);
 
         long delinquent = loans.stream().filter(l -> "DELINQUENT".equals(l.getStatus())).count();
+        long active = loans.stream().filter(l -> "ACTIVE".equals(l.getStatus())).count();
         double defaultRate = loans.isEmpty() ? 0 : (delinquent * 100.0 / loans.size());
 
         ReportDtos.AdminReportsSummary summary = new ReportDtos.AdminReportsSummary();
@@ -56,6 +57,8 @@ public class ReportService {
         summary.setApprovalRate(apps.isEmpty() ? 0 : approved * 100.0 / apps.size());
         summary.setAverageInterestRate(Math.round(avgRate * 10) / 10.0);
         summary.setDefaultRate(Math.round(defaultRate * 10) / 10.0);
+        summary.setActiveLoans(active);
+        summary.setAtRiskLoans(delinquent);
         summary.setTotalApplications(apps.size());
         summary.setApprovedApplications(approved);
         summary.setRejectedApplications(rejected);
