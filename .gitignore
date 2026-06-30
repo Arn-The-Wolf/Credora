@@ -1,4 +1,6 @@
-node_modules/
+frontend/credora/test-results/
+frontend/credora/playwright-report/
+
 .next/
 .env
 .env.local

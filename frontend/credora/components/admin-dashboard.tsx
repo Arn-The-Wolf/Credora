@@ -24,61 +24,67 @@ import {
   Eye,
   ChevronRight,
   Bell,
-  ArrowUpRight,
-  ArrowDownRight,
+  Calendar,
 } from "lucide-react"
 import AdminLayout from "@/components/admin-layout"
-import { api, AdminDashboardSummary } from "@/lib/api"
+import { api, AdminDashboardSummary, AdminReportsSummary } from "@/lib/api"
+import { AdminPageSkeleton } from "@/components/page-skeletons"
+import { formatKES } from "@/lib/format"
+import Link from "next/link"
 
 export default function AdminDashboard() {
   const [dateRange, setDateRange] = useState("7d")
   const [applicationFilter, setApplicationFilter] = useState("all")
+  const [appSearch, setAppSearch] = useState("")
   const [summary, setSummary] = useState<AdminDashboardSummary | null>(null)
+  const [reports, setReports] = useState<AdminReportsSummary | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get<AdminDashboardSummary>("/admin/dashboard").then((r) => setSummary(r.data)).catch(() => {})
-  }, [])
+    setLoading(true)
+    Promise.all([
+      api.get<AdminDashboardSummary>("/admin/dashboard"),
+      api.get<AdminReportsSummary>("/admin/reports"),
+    ])
+      .then(([dash, rep]) => {
+        setSummary(dash.data)
+        setReports(rep.data)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [dateRange])
+
+  const totalApps = reports?.totalApplications ?? summary?.totalApplications ?? 0
+  const approvedApps = reports?.approvedApplications ?? summary?.approvedApplications ?? 0
+  const rejectedApps = reports?.rejectedApplications ?? summary?.rejectedApplications ?? 0
+  const pendingApps = reports?.pendingApplications ?? summary?.pendingApplications ?? 0
+  const approvalRate = reports?.approvalRate ?? (totalApps > 0 ? Math.round((approvedApps / totalApps) * 100) : 0)
+  const rejectionRate = totalApps > 0 ? Math.round((rejectedApps / totalApps) * 100) : 0
 
   const dashboardMetrics = {
-    totalApplications: summary?.totalApplications ?? 0,
-    applicationsTrend: 12,
-    pendingApplications: summary?.pendingApplications ?? 0,
-    pendingTrend: 5,
-    approvedApplications: summary?.approvedApplications ?? 0,
-    approvedTrend: 8,
-    rejectedApplications: summary?.rejectedApplications ?? 0,
-    rejectedTrend: -2,
-    totalLoanAmount: 2450000,
-    amountTrend: 15,
-    averageInterestRate: 5.4,
-    rateTrend: -0.2,
+    totalApplications: totalApps,
+    pendingApplications: pendingApps,
+    approvedApplications: approvedApps,
+    rejectedApplications: rejectedApps,
+    totalLoanAmount: reports?.totalLoanVolume ?? 0,
+    averageInterestRate: reports?.averageInterestRate ?? 0,
     activeCustomers: summary?.totalCustomers ?? 0,
-    customersTrend: 7,
-    defaultRate: 2.1,
-    defaultTrend: -0.3,
+    defaultRate: reports?.defaultRate ?? 0,
+    approvalRate,
+    rejectionRate,
   }
 
-  // Sample data for application trend chart
-  const applicationTrendData = [
-    { name: "Jan", pending: 15, approved: 45, rejected: 8 },
-    { name: "Feb", pending: 18, approved: 50, rejected: 10 },
-    { name: "Mar", pending: 20, approved: 55, rejected: 7 },
-    { name: "Apr", pending: 22, approved: 60, rejected: 9 },
-    { name: "May", pending: 25, approved: 65, rejected: 11 },
-    { name: "Jun", pending: 28, approved: 70, rejected: 12 },
-    { name: "Jul", pending: 30, approved: 75, rejected: 10 },
-    { name: "Aug", pending: 25, approved: 80, rejected: 8 },
-    { name: "Sep", pending: 28, approved: 82, rejected: 14 },
-  ]
+  const applicationTrendData = (reports?.loanPerformance ?? []).map((row) => ({
+    name: row.month,
+    pending: Math.max(0, row.applications - row.approvals - row.rejections),
+    approved: row.approvals,
+    rejected: row.rejections,
+  }))
 
-  // Sample data for loan amount distribution
-  const loanDistributionData = [
-    { name: "Personal", value: 850000 },
-    { name: "Business", value: 1200000 },
-    { name: "Mortgage", value: 3500000 },
-    { name: "Auto", value: 650000 },
-    { name: "Education", value: 450000 },
-  ]
+  const loanDistributionData = (reports?.loanDistribution ?? []).map((row) => ({
+    name: row.type.charAt(0).toUpperCase() + row.type.slice(1),
+    value: row.amount,
+  }))
 
   const recentApplications = (summary?.recentApplications ?? []).map((app) => ({
     id: app.referenceId,
@@ -90,17 +96,30 @@ export default function AdminDashboard() {
     creditScore: app.aiCreditScore ?? 0,
   }))
 
-  // Filter applications based on status
   const filteredApplications =
-    applicationFilter === "all"
+    (applicationFilter === "all"
       ? recentApplications
       : recentApplications.filter((app) => app.status === applicationFilter)
+    ).filter((app) => {
+      if (!appSearch.trim()) return true
+      const q = appSearch.toLowerCase()
+      return app.id.toLowerCase().includes(q) || app.customer.toLowerCase().includes(q) || app.type.toLowerCase().includes(q)
+    })
 
-  // Status badge styling
-  const statusConfig = {
+  const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
     approved: { color: "bg-green-100 text-green-800", icon: <CheckCircle className="h-4 w-4 text-green-500 mr-1" /> },
     pending: { color: "bg-yellow-100 text-yellow-800", icon: <Clock className="h-4 w-4 text-yellow-500 mr-1" /> },
+    processing: { color: "bg-blue-100 text-blue-800", icon: <Clock className="h-4 w-4 text-blue-500 mr-1" /> },
     rejected: { color: "bg-red-100 text-red-800", icon: <XCircle className="h-4 w-4 text-red-500 mr-1" /> },
+  }
+  const statusStyle = (s: string) => statusConfig[s] ?? { color: "bg-gray-100 text-gray-800", icon: <AlertCircle className="h-4 w-4 mr-1" /> }
+
+  if (loading) {
+    return (
+      <AdminLayout title="Admin Dashboard">
+        <AdminPageSkeleton />
+      </AdminLayout>
+    )
   }
 
   return (
@@ -113,7 +132,7 @@ export default function AdminDashboard() {
             <p className="text-gray-500">Overview of loan applications and performance metrics</p>
           </div>
           <div className="mt-4 md:mt-0 flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
-            <Select defaultValue="7d" onValueChange={setDateRange}>
+            <Select value={dateRange} onValueChange={setDateRange}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select date range" />
               </SelectTrigger>
@@ -124,9 +143,11 @@ export default function AdminDashboard() {
                 <SelectItem value="year">This year</SelectItem>
               </SelectContent>
             </Select>
-            <Button>
+            <Button asChild>
+              <Link href="/admin/reports">
               <Download className="h-4 w-4 mr-2" />
               Export Report
+              </Link>
             </Button>
           </div>
         </div>
@@ -140,19 +161,9 @@ export default function AdminDashboard() {
                   <p className="text-sm text-gray-500">Total Applications</p>
                   <p className="text-2xl font-bold">{dashboardMetrics.totalApplications}</p>
                 </div>
-                <div
-                  className={`flex items-center text-sm ${dashboardMetrics.applicationsTrend > 0 ? "text-green-500" : "text-red-500"}`}
-                >
-                  {dashboardMetrics.applicationsTrend > 0 ? (
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(dashboardMetrics.applicationsTrend)}%
-                </div>
               </div>
               <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-                <span>Since last period</span>
+                <span>All time</span>
                 <CreditCard className="h-4 w-4" />
               </div>
             </CardContent>
@@ -163,21 +174,11 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm text-gray-500">Total Loan Amount</p>
-                  <p className="text-2xl font-bold">${(dashboardMetrics.totalLoanAmount / 1000000).toFixed(2)}M</p>
-                </div>
-                <div
-                  className={`flex items-center text-sm ${dashboardMetrics.amountTrend > 0 ? "text-green-500" : "text-red-500"}`}
-                >
-                  {dashboardMetrics.amountTrend > 0 ? (
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(dashboardMetrics.amountTrend)}%
+                  <p className="text-2xl font-bold">{formatKES(dashboardMetrics.totalLoanAmount)}</p>
                 </div>
               </div>
               <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-                <span>Since last period</span>
+                <span>Disbursed volume</span>
                 <DollarSign className="h-4 w-4" />
               </div>
             </CardContent>
@@ -190,19 +191,9 @@ export default function AdminDashboard() {
                   <p className="text-sm text-gray-500">Active Customers</p>
                   <p className="text-2xl font-bold">{dashboardMetrics.activeCustomers}</p>
                 </div>
-                <div
-                  className={`flex items-center text-sm ${dashboardMetrics.customersTrend > 0 ? "text-green-500" : "text-red-500"}`}
-                >
-                  {dashboardMetrics.customersTrend > 0 ? (
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(dashboardMetrics.customersTrend)}%
-                </div>
               </div>
               <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-                <span>Since last period</span>
+                <span>Registered borrowers</span>
                 <Users className="h-4 w-4" />
               </div>
             </CardContent>
@@ -213,21 +204,11 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-sm text-gray-500">Default Rate</p>
-                  <p className="text-2xl font-bold">{dashboardMetrics.defaultRate}%</p>
-                </div>
-                <div
-                  className={`flex items-center text-sm ${dashboardMetrics.defaultTrend < 0 ? "text-green-500" : "text-red-500"}`}
-                >
-                  {dashboardMetrics.defaultTrend < 0 ? (
-                    <ArrowDownRight className="h-4 w-4 mr-1" />
-                  ) : (
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(dashboardMetrics.defaultTrend)}%
+                  <p className="text-2xl font-bold">{dashboardMetrics.defaultRate.toFixed(1)}%</p>
                 </div>
               </div>
               <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-                <span>Since last period</span>
+                <span>Portfolio default rate</span>
                 <AlertCircle className="h-4 w-4" />
               </div>
             </CardContent>
@@ -243,21 +224,11 @@ export default function AdminDashboard() {
                   <p className="text-sm text-yellow-700">Pending Applications</p>
                   <p className="text-2xl font-bold text-yellow-800">{dashboardMetrics.pendingApplications}</p>
                 </div>
-                <div
-                  className={`flex items-center text-sm ${dashboardMetrics.pendingTrend > 0 ? "text-yellow-700" : "text-green-600"}`}
-                >
-                  {dashboardMetrics.pendingTrend > 0 ? (
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(dashboardMetrics.pendingTrend)}%
-                </div>
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xs text-yellow-700">Requires review</span>
-                <Button size="sm" variant="outline" className="border-yellow-500 text-yellow-700 hover:bg-yellow-100">
-                  View All
+                <Button asChild size="sm" variant="outline" className="border-yellow-500 text-yellow-700 hover:bg-yellow-100">
+                  <Link href="/admin/applications?status=pending">View All</Link>
                 </Button>
               </div>
             </CardContent>
@@ -270,21 +241,11 @@ export default function AdminDashboard() {
                   <p className="text-sm text-green-700">Approved Applications</p>
                   <p className="text-2xl font-bold text-green-800">{dashboardMetrics.approvedApplications}</p>
                 </div>
-                <div
-                  className={`flex items-center text-sm ${dashboardMetrics.approvedTrend > 0 ? "text-green-700" : "text-red-600"}`}
-                >
-                  {dashboardMetrics.approvedTrend > 0 ? (
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(dashboardMetrics.approvedTrend)}%
-                </div>
               </div>
               <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs text-green-700">Approval rate: 66%</span>
-                <Button size="sm" variant="outline" className="border-green-500 text-green-700 hover:bg-green-100">
-                  View All
+                <span className="text-xs text-green-700">Approval rate: {dashboardMetrics.approvalRate}%</span>
+                <Button asChild size="sm" variant="outline" className="border-green-500 text-green-700 hover:bg-green-100">
+                  <Link href="/admin/applications?status=approved">View All</Link>
                 </Button>
               </div>
             </CardContent>
@@ -297,21 +258,11 @@ export default function AdminDashboard() {
                   <p className="text-sm text-red-700">Rejected Applications</p>
                   <p className="text-2xl font-bold text-red-800">{dashboardMetrics.rejectedApplications}</p>
                 </div>
-                <div
-                  className={`flex items-center text-sm ${dashboardMetrics.rejectedTrend < 0 ? "text-green-600" : "text-red-700"}`}
-                >
-                  {dashboardMetrics.rejectedTrend < 0 ? (
-                    <ArrowDownRight className="h-4 w-4 mr-1" />
-                  ) : (
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                  )}
-                  {Math.abs(dashboardMetrics.rejectedTrend)}%
-                </div>
               </div>
               <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs text-red-700">Rejection rate: 11%</span>
-                <Button size="sm" variant="outline" className="border-red-500 text-red-700 hover:bg-red-100">
-                  View All
+                <span className="text-xs text-red-700">Rejection rate: {dashboardMetrics.rejectionRate}%</span>
+                <Button asChild size="sm" variant="outline" className="border-red-500 text-red-700 hover:bg-red-100">
+                  <Link href="/admin/applications?status=rejected">View All</Link>
                 </Button>
               </div>
             </CardContent>
@@ -354,7 +305,7 @@ export default function AdminDashboard() {
                     data={loanDistributionData}
                     categories={["value"]}
                     colors={["#3b82f6"]}
-                    valueFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                    valueFormatter={(value) => formatKES(value)}
                     showLegend={false}
                     showXAxis={true}
                     showYAxis={true}
@@ -376,15 +327,22 @@ export default function AdminDashboard() {
               <div className="flex items-center space-x-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input type="text" placeholder="Search applications" className="pl-10 pr-4 w-64" />
+                  <Input
+                    type="text"
+                    placeholder="Search applications"
+                    className="pl-10 pr-4 w-64"
+                    value={appSearch}
+                    onChange={(e) => setAppSearch(e.target.value)}
+                  />
                 </div>
-                <Select defaultValue="all" onValueChange={setApplicationFilter}>
+                <Select value={applicationFilter} onValueChange={setApplicationFilter}>
                   <SelectTrigger className="w-[130px]">
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
                   </SelectContent>
@@ -416,7 +374,7 @@ export default function AdminDashboard() {
                       <TableCell className="font-medium">{application.id}</TableCell>
                       <TableCell>{application.customer}</TableCell>
                       <TableCell>{application.type}</TableCell>
-                      <TableCell>${application.amount.toLocaleString()}</TableCell>
+                      <TableCell>{formatKES(application.amount)}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
                           {application.creditScore}
@@ -435,9 +393,9 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell>{new Date(application.date).toLocaleDateString()}</TableCell>
                       <TableCell>
-                        <Badge className={statusConfig[application.status as keyof typeof statusConfig].color}>
+                        <Badge className={statusStyle(application.status).color}>
                           <div className="flex items-center">
-                            {statusConfig[application.status as keyof typeof statusConfig].icon}
+                            {statusStyle(application.status).icon}
                             {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
                           </div>
                         </Badge>
@@ -469,9 +427,11 @@ export default function AdminDashboard() {
             <div className="text-sm text-gray-500">
               Showing {filteredApplications.length} of {recentApplications.length} applications
             </div>
-            <Button variant="outline">
+            <Button asChild variant="outline">
+              <Link href="/admin/applications">
               View All Applications
               <ChevronRight className="h-4 w-4 ml-2" />
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -486,41 +446,49 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {dashboardMetrics.pendingApplications > 5 && (
               <div className="flex items-start p-3 border bg-white rounded-lg">
                 <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center mr-3">
                   <AlertCircle className="h-4 w-4 text-yellow-500" />
                 </div>
                 <div>
-                  <div className="font-medium text-sm">High Volume of Pending Applications</div>
+                  <div className="font-medium text-sm">Pending Applications Queue</div>
                   <div className="text-xs text-gray-700 mt-1">
-                    There are 28 pending applications that require review. Consider allocating more resources to
-                    application processing.
+                    {dashboardMetrics.pendingApplications} applications are awaiting review.
                   </div>
+                  <Button asChild size="sm" variant="outline" className="mt-2">
+                    <Link href="/admin/applications?status=pending">Review now</Link>
+                  </Button>
                 </div>
               </div>
+              )}
 
+              {dashboardMetrics.approvalRate > 0 && (
               <div className="flex items-start p-3 border bg-white rounded-lg">
                 <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3">
                   <TrendingUp className="h-4 w-4 text-green-500" />
                 </div>
                 <div>
-                  <div className="font-medium text-sm">Approval Rate Increased</div>
+                  <div className="font-medium text-sm">Portfolio Approval Rate</div>
                   <div className="text-xs text-gray-700 mt-1">
-                    The loan approval rate has increased by 5% compared to the previous month. This indicates improved
-                    application quality.
+                    Current approval rate is {dashboardMetrics.approvalRate}% across {dashboardMetrics.totalApplications} applications.
                   </div>
                 </div>
               </div>
+              )}
 
               <div className="flex items-start p-3 border bg-white rounded-lg">
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
                   <Calendar className="h-4 w-4 text-blue-500" />
                 </div>
                 <div>
-                  <div className="font-medium text-sm">Monthly Risk Assessment Due</div>
+                  <div className="font-medium text-sm">Disbursement Queue</div>
                   <div className="text-xs text-gray-700 mt-1">
-                    The monthly risk assessment report is due in 3 days. Please ensure all loan data is up to date.
+                    Approved loans ready for M-Pesa disbursement are managed on the disbursements page.
                   </div>
+                  <Button asChild size="sm" variant="outline" className="mt-2">
+                    <Link href="/admin/loans">Open disbursements</Link>
+                  </Button>
                 </div>
               </div>
             </div>

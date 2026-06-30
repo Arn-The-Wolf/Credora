@@ -20,9 +20,27 @@ export default function ManageLoans() {
   const [autopayId, setAutopayId] = useState<number | null>(null)
   const [scheduleLoanId, setScheduleLoanId] = useState<number | null>(null)
   const [mpesaId, setMpesaId] = useState<number | null>(null)
+  const [paymentHistories, setPaymentHistories] = useState<Record<number, PaymentResponse[]>>({})
 
-  const loadLoans = () => {
-    api.get<LoanResponse[]>("/loans").then((r) => setApiLoans(r.data)).catch(() => {})
+  const loadLoans = async () => {
+    try {
+      const { data } = await api.get<LoanResponse[]>("/loans")
+      setApiLoans(data)
+      const histories: Record<number, PaymentResponse[]> = {}
+      await Promise.all(
+        data.map(async (loan) => {
+          try {
+            const { data: payments } = await api.get<PaymentResponse[]>(`/loans/${loan.id}/payments`)
+            histories[loan.id] = payments
+          } catch {
+            histories[loan.id] = []
+          }
+        })
+      )
+      setPaymentHistories(histories)
+    } catch {
+      setApiLoans([])
+    }
   }
 
   useEffect(() => {
@@ -79,7 +97,10 @@ export default function ManageLoans() {
         nextPayment: { amount: Number(l.monthlyPayment), date: new Date().toISOString().slice(0, 10) },
         progress: l.termMonths ? Math.round((l.monthsPaid / l.termMonths) * 100) : 0,
         autoPayEnabled: l.autoPayEnabled ?? false,
-        paymentHistory: [{ month: "Current", amount: Number(l.monthlyPayment) }],
+        paymentHistory: (paymentHistories[l.id] ?? []).map((p) => ({
+          month: new Date(p.paymentDate).toLocaleDateString("en-US", { month: "short" }),
+          amount: Number(p.amount),
+        })),
       }))
     : []
 
@@ -286,7 +307,7 @@ export default function ManageLoans() {
                                 }))}
                                 categories={["value"]}
                                 colors={["#3b82f6"]}
-                                valueFormatter={(value) => `$${value}`}
+                                valueFormatter={(value) => formatKES(value)}
                                 showLegend={false}
                                 showXAxis
                                 showYAxis

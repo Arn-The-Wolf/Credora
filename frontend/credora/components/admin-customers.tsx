@@ -155,7 +155,13 @@ export default function AdminCustomers() {
           <div className="flex items-center space-x-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input type="text" placeholder="Search customers" className="pl-10 pr-4 w-64" />
+              <Input
+                type="text"
+                placeholder="Search customers"
+                className="pl-10 pr-4 w-64"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
             <Select defaultValue="all" onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[150px]">

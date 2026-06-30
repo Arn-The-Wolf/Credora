@@ -30,6 +30,28 @@ import { api, ApplicationResponse } from "@/lib/api"
 import { formatKES } from "@/lib/format"
 import Link from "next/link"
 
+function withinDateRange(submittedDate: string | undefined, range: string): boolean {
+  if (range === "all" || !submittedDate) return true
+  const d = new Date(submittedDate)
+  const now = new Date()
+  if (range === "today") {
+    const start = new Date(now)
+    start.setHours(0, 0, 0, 0)
+    return d >= start
+  }
+  if (range === "week") {
+    const start = new Date(now)
+    start.setDate(start.getDate() - 7)
+    return d >= start
+  }
+  if (range === "month") {
+    const start = new Date(now)
+    start.setMonth(start.getMonth() - 1)
+    return d >= start
+  }
+  return true
+}
+
 export default function AdminApplications() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateRange, setDateRange] = useState("all")
@@ -55,8 +77,19 @@ export default function AdminApplications() {
     loadApplications()
   }
 
+  const bulkUpdateStatus = async (status: string, rejectionReason?: string) => {
+    await Promise.all(
+      selectedApplications.map((id) =>
+        api.patch(`/admin/applications/${id}/status`, { status, rejectionReason })
+      )
+    )
+    setSelectedApplications([])
+    loadApplications()
+  }
+
   const filteredApplications = applications.filter((app) => {
     if (statusFilter !== "all" && app.status !== statusFilter) return false
+    if (!withinDateRange(app.submittedDate, dateRange)) return false
     if (!search.trim()) return true
     const q = search.toLowerCase()
     return (
@@ -75,6 +108,12 @@ export default function AdminApplications() {
     rejected: { color: "bg-red-100 text-red-800", icon: <XCircle className="h-4 w-4 text-red-500 mr-1" /> },
   }
   const statusStyle = (s: string) => statusConfig[s] ?? { color: "bg-gray-100 text-gray-800", icon: <AlertCircle className="h-4 w-4 mr-1" /> }
+
+  const highDtiCount = applications.filter((a) => (a.debtToIncome ?? 0) > 0.4).length
+  const borderlineScoreCount = applications.filter((a) => {
+    const score = a.aiCreditScore ?? a.existingCreditScore ?? 0
+    return score >= 640 && score <= 680
+  }).length
 
   // Handle checkbox selection
   const toggleSelection = (id: string) => {
@@ -103,11 +142,16 @@ export default function AdminApplications() {
             <Button
               variant={selectedApplications.length > 0 ? "default" : "outline"}
               disabled={selectedApplications.length === 0}
+              onClick={() => bulkUpdateStatus("approved")}
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Approve Selected
             </Button>
-            <Button variant="outline" disabled={selectedApplications.length === 0}>
+            <Button
+              variant="outline"
+              disabled={selectedApplications.length === 0}
+              onClick={() => bulkUpdateStatus("rejected", "Bulk rejected by institution reviewer")}
+            >
               <XCircle className="h-4 w-4 mr-2" />
               Reject Selected
             </Button>
@@ -290,7 +334,9 @@ export default function AdminApplications() {
                           <div className="flex justify-end space-x-2">
                             {application.status === "approved" && (
                               <Button asChild size="sm" variant="outline">
-                                <Link href="/admin/loans">Disburse</Link>
+                                <Link href={application.loanId ? `/admin/loans?highlight=${application.loanId}` : "/admin/loans"}>
+                                  Disburse
+                                </Link>
                               </Button>
                             )}
                             {(application.status === "pending" || application.status === "processing") && (
@@ -333,7 +379,7 @@ export default function AdminApplications() {
           </Card>
         </Tabs>
 
-        {/* Risk Alerts */}
+        {(highDtiCount > 0 || borderlineScoreCount > 0) && (
         <Card className="bg-yellow-50 border-yellow-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
@@ -344,6 +390,7 @@ export default function AdminApplications() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {highDtiCount > 0 && (
               <div className="flex items-start p-3 border bg-white rounded-lg">
                 <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center mr-3">
                   <AlertCircle className="h-4 w-4 text-yellow-500" />
@@ -351,14 +398,16 @@ export default function AdminApplications() {
                 <div>
                   <div className="font-medium text-sm">High Debt-to-Income Ratio</div>
                   <div className="text-xs text-gray-700 mt-1">
-                    3 applications have a debt-to-income ratio above 40%, which exceeds our standard threshold.
+                    {highDtiCount} application{highDtiCount !== 1 ? "s have" : " has"} a debt-to-income ratio above 40%.
                   </div>
-                  <Button variant="outline" size="sm" className="mt-2">
-                    View Applications
+                  <Button asChild variant="outline" size="sm" className="mt-2">
+                    <Link href="/admin/applications">View Applications</Link>
                   </Button>
                 </div>
               </div>
+              )}
 
+              {borderlineScoreCount > 0 && (
               <div className="flex items-start p-3 border bg-white rounded-lg">
                 <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center mr-3">
                   <AlertCircle className="h-4 w-4 text-yellow-500" />
@@ -366,16 +415,18 @@ export default function AdminApplications() {
                 <div>
                   <div className="font-medium text-sm">Borderline Credit Scores</div>
                   <div className="text-xs text-gray-700 mt-1">
-                    5 applications have credit scores between 640-680, which may require manual review.
+                    {borderlineScoreCount} application{borderlineScoreCount !== 1 ? "s have" : " has"} credit scores between 640–680.
                   </div>
-                  <Button variant="outline" size="sm" className="mt-2">
-                    View Applications
+                  <Button asChild variant="outline" size="sm" className="mt-2">
+                    <Link href="/admin/applications">View Applications</Link>
                   </Button>
                 </div>
               </div>
+              )}
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </AdminLayout>
   )

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,8 @@ interface AdminLoan {
 }
 
 export default function AdminLoans() {
+  const searchParams = useSearchParams()
+  const highlightId = searchParams.get("highlight")
   const [loans, setLoans] = useState<AdminLoan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -43,11 +46,15 @@ export default function AdminLoans() {
   useEffect(() => { load() }, [])
 
   const disburse = async (loan: AdminLoan) => {
+    if (!loan.customerPhone) {
+      setError("Customer phone number is required for M-Pesa disbursement")
+      return
+    }
     setDisbursing(loan.id)
     setError("")
     try {
       await api.post(`/admin/loans/${loan.id}/disburse`, {
-        phoneNumber: loan.customerPhone || "+254712345678",
+        phoneNumber: loan.customerPhone,
       })
       load()
     } catch (e) {
@@ -102,7 +109,7 @@ export default function AdminLoans() {
                 </TableHeader>
                 <TableBody>
                   {loans.map((loan) => (
-                    <TableRow key={loan.id}>
+                    <TableRow key={loan.id} className={highlightId === String(loan.id) ? "bg-blue-50" : undefined}>
                       <TableCell>
                         <div className="font-medium">{loan.referenceId}</div>
                         <div className="text-xs text-gray-500">{loan.applicationRef}</div>
@@ -119,7 +126,8 @@ export default function AdminLoans() {
                       <TableCell>
                         <Button
                           size="sm"
-                          disabled={disbursing === loan.id}
+                          disabled={disbursing === loan.id || !loan.customerPhone}
+                          title={!loan.customerPhone ? "Customer phone required" : undefined}
                           onClick={() => disburse(loan)}
                         >
                           {disbursing === loan.id ? "Disbursing…" : "Disburse"}
