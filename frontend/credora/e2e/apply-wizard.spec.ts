@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test"
 import { FRONTEND, signupAndLogin } from "./fixtures"
 
 test.describe("Apply wizard UI — personal loan", () => {
+  test.describe.configure({ timeout: 120_000 })
+
   test.beforeEach(async ({ page, request }) => {
     const auth = await signupAndLogin(request)
     await page.goto(`${FRONTEND}/login`)
@@ -48,30 +50,28 @@ test.describe("Apply wizard UI — personal loan", () => {
     await page.getByPlaceholder("M-Pesa / mobile wallet volume").fill("3000")
     await page.getByRole("button", { name: "Next" }).click()
 
-    // Step 4: Documents — upload via file inputs
-    const fileInputs = page.locator('input[type="file"]')
-    const count = await fileInputs.count()
-    for (let i = 0; i < count; i++) {
-      await fileInputs.nth(i).setInputFiles({
-        name: "test-doc.pdf",
+    // Step 4: Documents — each upload removes its input from DOM after FileReader completes
+    const requiredDocs = 2
+    for (let i = 0; i < requiredDocs; i++) {
+      await page.locator('input[type="file"]').first().setInputFiles({
+        name: `test-doc-${i}.pdf`,
         mimeType: "application/pdf",
         buffer: Buffer.from("%PDF-1.4 test"),
       })
+      await expect(page.getByText(/Uploaded:/)).toHaveCount(i + 1, { timeout: 15000 })
     }
     await page.getByRole("button", { name: "Next" }).click()
 
     // Step 5: Review & submit
-    await expect(page.getByText("Review Your Application")).toBeVisible()
+    await expect(page.getByText("Review Your Application")).toBeVisible({ timeout: 10000 })
     await page.getByRole("button", { name: "Submit Application" }).click()
 
     // Results
-    await expect(page.getByText(/Loan Results|Application Success|personal/i)).toBeVisible({
-      timeout: 30000,
-    })
+    await expect(page.getByText("Application Success")).toBeVisible({ timeout: 30000 })
   })
 })
 
 test("login page renders", async ({ page }) => {
   await page.goto(`${FRONTEND}/login`)
-  await expect(page.getByRole("button", { name: /Sign In|Log In/i })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Log In as Applicant" })).toBeVisible()
 })

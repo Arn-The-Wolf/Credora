@@ -38,7 +38,14 @@ def startup():
 
 @app.get("/health")
 def health():
-    return {"status": "UP", "service": "credora-ai", "version": "1.1.0"}
+    from app.scorer import _ml_available, _regressor, _classifier
+    return {
+        "status": "UP",
+        "service": "credora-ai",
+        "version": "1.2.0",
+        "ml_enabled": _ml_available and _regressor is not None,
+        "classifier_ready": _classifier is not None,
+    }
 
 
 @app.post("/predict")

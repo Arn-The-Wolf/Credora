@@ -72,6 +72,12 @@ public class AdminController {
         return applicationService.addNote(id, officerId(auth), officerEmail(auth), req);
     }
 
+    @GetMapping("/loans")
+    public List<ApplicationDtos.AdminLoanResponse> loans(
+            @RequestParam(defaultValue = "pending_disbursement") String status) {
+        return applicationService.getAdminLoans(status);
+    }
+
     @PostMapping("/loans/{id}/disburse")
     public Loan disburse(
             Authentication auth,

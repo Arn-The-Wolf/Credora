@@ -460,6 +460,41 @@ public class ApplicationService {
                         new TypeReference<Map<String, String>>() {}));
             } catch (JsonProcessingException ignored) { }
         }
+        r.setAiRecommendation(app.getAiRecommendation());
+        loanRepository.findByApplication_Id(app.getId()).ifPresent(loan -> r.setLoanId(loan.getId()));
+        return r;
+    }
+
+    public List<ApplicationDtos.AdminLoanResponse> getAdminLoans(String status) {
+        List<Loan> loans;
+        if (status == null || status.isBlank() || "all".equalsIgnoreCase(status)) {
+            loans = loanRepository.findAll();
+        } else if ("pending_disbursement".equalsIgnoreCase(status)) {
+            loans = loanRepository.findByDisbursementStatusOrderByCreatedAtDesc("PENDING");
+        } else {
+            loans = loanRepository.findByStatusOrderByCreatedAtDesc(status.toUpperCase());
+        }
+        return loans.stream().map(this::toAdminLoanResponse).collect(Collectors.toList());
+    }
+
+    private ApplicationDtos.AdminLoanResponse toAdminLoanResponse(Loan loan) {
+        ApplicationDtos.AdminLoanResponse r = new ApplicationDtos.AdminLoanResponse();
+        r.setId(loan.getId());
+        r.setReferenceId(loan.getReferenceId());
+        r.setPrincipal(loan.getPrincipal());
+        r.setStatus(loan.getStatus());
+        r.setDisbursementStatus(loan.getDisbursementStatus());
+        r.setMonthlyPayment(loan.getMonthlyPayment());
+        r.setCreatedAt(loan.getCreatedAt());
+        if (loan.getApplication() != null) {
+            r.setApplicationId(loan.getApplication().getId());
+            r.setApplicationRef(loan.getApplication().getReferenceId());
+        }
+        if (loan.getUser() != null) {
+            r.setCustomerName(loan.getUser().getFullName());
+            r.setCustomerEmail(loan.getUser().getEmail());
+            r.setCustomerPhone(loan.getUser().getPhoneNumber());
+        }
         return r;
     }
 

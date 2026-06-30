@@ -8,4 +8,7 @@ import java.util.List;
 public interface LoanRepository extends JpaRepository<Loan, Long> {
     List<Loan> findByUserOrderByCreatedAtDesc(User user);
     List<Loan> findByUserAndStatusOrderByCreatedAtDesc(User user, String status);
+    List<Loan> findByStatusOrderByCreatedAtDesc(String status);
+    List<Loan> findByDisbursementStatusOrderByCreatedAtDesc(String disbursementStatus);
+    java.util.Optional<Loan> findByApplication_Id(Long applicationId);
 }

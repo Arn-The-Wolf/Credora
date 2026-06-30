@@ -106,6 +106,8 @@ public class ApplicationDtos {
         private Double debtToIncome;
         private Map<String, String> sectorDetails;
         private ScoringInsights scoring;
+        private Long loanId;
+        private String aiRecommendation;
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
         public String getReferenceId() { return referenceId; }
@@ -150,6 +152,49 @@ public class ApplicationDtos {
         public void setSectorDetails(Map<String, String> sectorDetails) { this.sectorDetails = sectorDetails; }
         public ScoringInsights getScoring() { return scoring; }
         public void setScoring(ScoringInsights scoring) { this.scoring = scoring; }
+        public Long getLoanId() { return loanId; }
+        public void setLoanId(Long loanId) { this.loanId = loanId; }
+        public String getAiRecommendation() { return aiRecommendation; }
+        public void setAiRecommendation(String aiRecommendation) { this.aiRecommendation = aiRecommendation; }
+    }
+
+    public static class AdminLoanResponse {
+        private Long id;
+        private String referenceId;
+        private Long applicationId;
+        private String applicationRef;
+        private String customerName;
+        private String customerEmail;
+        private String customerPhone;
+        private BigDecimal principal;
+        private String status;
+        private String disbursementStatus;
+        private BigDecimal monthlyPayment;
+        private java.time.Instant createdAt;
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public String getReferenceId() { return referenceId; }
+        public void setReferenceId(String referenceId) { this.referenceId = referenceId; }
+        public Long getApplicationId() { return applicationId; }
+        public void setApplicationId(Long applicationId) { this.applicationId = applicationId; }
+        public String getApplicationRef() { return applicationRef; }
+        public void setApplicationRef(String applicationRef) { this.applicationRef = applicationRef; }
+        public String getCustomerName() { return customerName; }
+        public void setCustomerName(String customerName) { this.customerName = customerName; }
+        public String getCustomerEmail() { return customerEmail; }
+        public void setCustomerEmail(String customerEmail) { this.customerEmail = customerEmail; }
+        public String getCustomerPhone() { return customerPhone; }
+        public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }
+        public BigDecimal getPrincipal() { return principal; }
+        public void setPrincipal(BigDecimal principal) { this.principal = principal; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        public String getDisbursementStatus() { return disbursementStatus; }
+        public void setDisbursementStatus(String disbursementStatus) { this.disbursementStatus = disbursementStatus; }
+        public BigDecimal getMonthlyPayment() { return monthlyPayment; }
+        public void setMonthlyPayment(BigDecimal monthlyPayment) { this.monthlyPayment = monthlyPayment; }
+        public java.time.Instant getCreatedAt() { return createdAt; }
+        public void setCreatedAt(java.time.Instant createdAt) { this.createdAt = createdAt; }
     }
 
     public static class ScoringInsights {

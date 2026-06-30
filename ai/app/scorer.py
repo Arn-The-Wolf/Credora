@@ -10,11 +10,15 @@ from pathlib import Path
 
 from typing import Any
 
+import json
+
 
 
 MODEL_DIR = Path(__file__).parent / "models"
 
 MODEL_DIR.mkdir(exist_ok=True)
+
+MODEL_VERSION = "1.2"
 
 
 
@@ -56,6 +60,14 @@ LOAN_TYPE_CONFIG = {
 
     "education": {"base_apr": 5.5, "risk_weight": 0.80, "max_dti": 0.45},
 
+}
+
+LOAN_TYPE_ENCODE = {
+    "personal": 0.2,
+    "business": 0.45,
+    "mortgage": 0.15,
+    "auto": 0.35,
+    "education": 0.25,
 }
 
 
@@ -262,7 +274,11 @@ def _sector_adjustment(loan_type: str, sector: dict[str, Any] | None) -> tuple[f
 
 
 
-def _generate_training_data(n: int = 3000):
+def _encode_loan_type(loan_type: str) -> float:
+    return LOAN_TYPE_ENCODE.get((loan_type or "personal").lower(), 0.3)
+
+
+def _generate_training_data(n: int = 5000):
 
     rng = np.random.default_rng(42)
 
@@ -282,9 +298,14 @@ def _generate_training_data(n: int = 3000):
 
     emp_encoded = np.array([EMPLOYMENT_MAP[rng.choice(emp_keys)] for _ in range(n)])
 
+    type_keys = list(LOAN_TYPE_ENCODE.keys())
+    loan_type_enc = np.array([LOAN_TYPE_ENCODE[rng.choice(type_keys)] for _ in range(n)])
+
     debt_to_income = loan_amount / (income * 12 + 1)
 
-    features = np.column_stack([income, mobile_money, utility_score, debt_to_income, term, existing_score, emp_encoded])
+    features = np.column_stack([
+        income, mobile_money, utility_score, debt_to_income, term, existing_score, emp_encoded, loan_type_enc,
+    ])
 
     alt_data_boost = (mobile_money / (income + 1)) * 30 + utility_score * 0.3
 
@@ -292,7 +313,7 @@ def _generate_training_data(n: int = 3000):
 
     credit_scores = np.clip(
 
-        existing_score * 0.4 + alt_data_boost + thin_file_boost + income / 100 - debt_to_income * 80 + emp_encoded * 50,
+        existing_score * 0.4 + alt_data_boost + thin_file_boost + income / 100 - debt_to_income * 80 + emp_encoded * 50 - loan_type_enc * 40,
 
         300, 850,
 
@@ -325,15 +346,19 @@ def train_and_save_models() -> None:
     classifier_path = MODEL_DIR / "approval_classifier.joblib"
 
     regressor_path = MODEL_DIR / "credit_score_regressor.joblib"
+    meta_path = MODEL_DIR / "model_meta.json"
 
-    if classifier_path.exists() and regressor_path.exists():
+    if classifier_path.exists() and regressor_path.exists() and meta_path.exists():
         try:
-            _regressor = joblib.load(regressor_path)
-            _classifier = joblib.load(classifier_path)
-            return
+            meta = json.loads(meta_path.read_text())
+            if meta.get("version") == MODEL_VERSION:
+                _regressor = joblib.load(regressor_path)
+                _classifier = joblib.load(classifier_path)
+                return
         except Exception:
             classifier_path.unlink(missing_ok=True)
             regressor_path.unlink(missing_ok=True)
+            meta_path.unlink(missing_ok=True)
 
     X, y_score, y_approve = _generate_training_data()
 
@@ -344,11 +369,11 @@ def train_and_save_models() -> None:
         ya_train[0] = 0
         ya_train[1] = 1
 
-    _regressor = GradientBoostingRegressor(n_estimators=80, max_depth=4, random_state=42)
+    _regressor = GradientBoostingRegressor(n_estimators=120, max_depth=5, learning_rate=0.08, subsample=0.85, random_state=42)
 
     _regressor.fit(X_train, ys_train)
 
-    _classifier = GradientBoostingClassifier(n_estimators=80, max_depth=4, random_state=42)
+    _classifier = GradientBoostingClassifier(n_estimators=120, max_depth=5, learning_rate=0.08, subsample=0.85, random_state=42)
 
     try:
         _classifier.fit(X_train, ya_train)
@@ -359,6 +384,7 @@ def train_and_save_models() -> None:
 
     if _classifier is not None:
         joblib.dump(_classifier, classifier_path)
+    meta_path.write_text(json.dumps({"version": MODEL_VERSION, "samples": len(X)}))
 
 
 
@@ -446,7 +472,7 @@ def predict_credit(
 
     if _ml_available and _regressor is not None and _classifier is not None:
 
-        features = np.array([[income, mobile, utility, dti, loan_term_months, existing, emp]])
+        features = np.array([[income, mobile, utility, dti, loan_term_months, existing, emp, _encode_loan_type(loan_type)]])
 
         credit_score = int(np.clip(_regressor.predict(features)[0], 300, 850))
 

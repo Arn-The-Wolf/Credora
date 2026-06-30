@@ -116,6 +116,8 @@ export interface ApplicationResponse {
   debtToIncome?: number;
   sectorDetails?: Record<string, string>;
   scoring?: ScoringInsights;
+  aiRecommendation?: string;
+  loanId?: number;
 }
 
 export interface LoanResponse {

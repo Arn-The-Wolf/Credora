@@ -1,25 +1,33 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, CreditCard, FileText, BarChart2, LogOut } from "lucide-react"
+import { LayoutDashboard, Users, CreditCard, FileText, BarChart2, LogOut, Banknote } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { clearAuth, getStoredAuth } from "@/lib/api"
 
 export default function AdminSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const auth = getStoredAuth()
 
-  const isActive = (path: string) => {
-    return pathname === path
-  }
+  const isActive = (path: string) => pathname === path
 
   const navItems = [
     { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
     { name: "Loan Applications", path: "/admin/applications", icon: CreditCard },
+    { name: "Disbursements", path: "/admin/loans", icon: Banknote },
     { name: "Customers", path: "/admin/customers", icon: Users },
     { name: "Reports", path: "/admin/reports", icon: BarChart2 },
     { name: "Documents", path: "/admin/documents", icon: FileText },
   ]
+
+  const logout = () => {
+    clearAuth()
+    document.cookie = "credora_token=; path=/; max-age=0"
+    router.push("/login")
+  }
 
   return (
     <div className="w-[320px] bg-[#0A1525] text-white flex flex-col h-screen border-r border-[#1A2B45]">
@@ -89,14 +97,18 @@ export default function AdminSidebar() {
               <div className="absolute -bottom-1 -right-1 h-3.5 w-3.5 bg-green-500 rounded-full border-2 border-[#1A2B45]"></div>
             </div>
             <div>
-              <p className="font-medium text-white">Admin User</p>
-              <p className="text-xs text-blue-300">admin@credora.com</p>
+              <p className="font-medium text-white">{auth?.userData?.institutionName ?? "Admin"}</p>
+              <p className="text-xs text-blue-300">{auth?.userData?.institutionEmail ?? "admin@credora.test"}</p>
             </div>
           </div>
         </div>
 
         {/* Logout Button */}
-        <Button className="w-full relative group overflow-hidden bg-transparent border border-blue-500 hover:bg-blue-600 hover:border-blue-600 text-white transition-all duration-300">
+        <Button
+          type="button"
+          onClick={logout}
+          className="w-full relative group overflow-hidden bg-transparent border border-blue-500 hover:bg-blue-600 hover:border-blue-600 text-white transition-all duration-300"
+        >
           <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-600 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
           <span className="relative flex items-center justify-center">
             <LogOut className="h-4 w-4 mr-2" />

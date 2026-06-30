@@ -108,6 +108,12 @@ export default function ManageLoans() {
       status: "upcoming",
     }))
 
+  const totalInterestPaid = apiLoans.reduce((sum, l) => {
+    const paid = l.monthsPaid * Number(l.monthlyPayment)
+    const principalPaid = Number(l.principal) - Number(l.remainingBalance)
+    return sum + Math.max(0, paid - principalPaid)
+  }, 0)
+
   // Filter loans based on active tab
   const filteredLoans = activeTab === "active" ? loans : completedLoans
 
@@ -166,7 +172,7 @@ export default function ManageLoans() {
             <CardContent className="pt-6">
               <div className="flex flex-col">
                 <span className="text-sm text-gray-500">Total Interest Paid</span>
-                <span className="text-2xl font-bold">$1,240</span>
+                <span className="text-2xl font-bold">{formatKES(totalInterestPaid)}</span>
                 <div className="flex items-center mt-2 text-sm text-gray-500">
                   <span>Year to date</span>
                 </div>

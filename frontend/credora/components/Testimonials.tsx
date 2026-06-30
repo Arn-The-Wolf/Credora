@@ -20,7 +20,7 @@ const Testimonials = () => {
               <p>CEO, Martin Group</p>
             </div>
           </div>
-          <p>CredoPay transformed my business! Their
+          <p>Credora transformed my business! Their
             expert team guided me through the entire
             process, helping me secure the funding I
             needed. I couldn’t have grown my business
@@ -34,7 +34,7 @@ const Testimonials = () => {
               <p>CEO, Martin Group</p>
             </div>
           </div>
-          <p>CredoPay transformed my business! Their
+          <p>Credora transformed my business! Their
             expert team guided me through the entire
             process, helping me secure the funding I
             needed. I couldn’t have grown my business
@@ -48,7 +48,7 @@ const Testimonials = () => {
               <p>CEO, Martin Group</p>
             </div>
           </div>
-          <p>CredoPay transformed my business! Their
+          <p>Credora transformed my business! Their
             expert team guided me through the entire
             process, helping me secure the funding I
             needed. I couldn’t have grown my business

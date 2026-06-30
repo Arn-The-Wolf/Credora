@@ -25,7 +25,10 @@ import {
   ArrowUpDown,
 } from "lucide-react"
 import AdminLayout from "@/components/admin-layout"
+import { TableSkeleton } from "@/components/page-skeletons"
 import { api, ApplicationResponse } from "@/lib/api"
+import { formatKES } from "@/lib/format"
+import Link from "next/link"
 
 export default function AdminApplications() {
   const [statusFilter, setStatusFilter] = useState("all")
@@ -33,6 +36,7 @@ export default function AdminApplications() {
   const [selectedApplications, setSelectedApplications] = useState<string[]>([])
   const [applications, setApplications] = useState<ApplicationResponse[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
 
   const loadApplications = () => {
     setLoading(true)
@@ -51,18 +55,26 @@ export default function AdminApplications() {
     loadApplications()
   }
 
-  // Filter applications based on status
   const filteredApplications = applications.filter((app) => {
-    if (statusFilter === "all") return true
-    return app.status === statusFilter
+    if (statusFilter !== "all" && app.status !== statusFilter) return false
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return (
+      app.referenceId?.toLowerCase().includes(q) ||
+      app.customerName?.toLowerCase().includes(q) ||
+      app.customerEmail?.toLowerCase().includes(q) ||
+      app.loanType?.toLowerCase().includes(q)
+    )
   })
 
   // Status badge styling
-  const statusConfig = {
+  const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
     approved: { color: "bg-green-100 text-green-800", icon: <CheckCircle className="h-4 w-4 text-green-500 mr-1" /> },
     pending: { color: "bg-yellow-100 text-yellow-800", icon: <Clock className="h-4 w-4 text-yellow-500 mr-1" /> },
+    processing: { color: "bg-blue-100 text-blue-800", icon: <Clock className="h-4 w-4 text-blue-500 mr-1" /> },
     rejected: { color: "bg-red-100 text-red-800", icon: <XCircle className="h-4 w-4 text-red-500 mr-1" /> },
   }
+  const statusStyle = (s: string) => statusConfig[s] ?? { color: "bg-gray-100 text-gray-800", icon: <AlertCircle className="h-4 w-4 mr-1" /> }
 
   // Handle checkbox selection
   const toggleSelection = (id: string) => {
@@ -107,7 +119,13 @@ export default function AdminApplications() {
           <div className="flex items-center space-x-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input type="text" placeholder="Search applications" className="pl-10 pr-4 w-64" />
+              <Input
+                type="text"
+                placeholder="Search applications"
+                className="pl-10 pr-4 w-64"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
             <Select defaultValue="all" onValueChange={setDateRange}>
               <SelectTrigger className="w-[150px]">
@@ -131,6 +149,7 @@ export default function AdminApplications() {
           <TabsList className="mb-4">
             <TabsTrigger value="all">All Applications</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="processing">Processing</TabsTrigger>
             <TabsTrigger value="approved">Approved</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
@@ -199,7 +218,20 @@ export default function AdminApplications() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredApplications.map((application) => (
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={10}>
+                          <TableSkeleton rows={6} cols={6} />
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredApplications.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                          No applications found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                    filteredApplications.map((application) => (
                       <TableRow key={application.id}>
                         <TableCell>
                           <Checkbox
@@ -215,7 +247,7 @@ export default function AdminApplications() {
                           </div>
                         </TableCell>
                         <TableCell>{application.loanType}</TableCell>
-                        <TableCell>${Number(application.amount).toLocaleString()}</TableCell>
+                        <TableCell>{formatKES(application.amount)}</TableCell>
                         <TableCell>
                           <div className="flex items-center">
                             {application.aiCreditScore ?? application.existingCreditScore ?? "—"}
@@ -247,18 +279,20 @@ export default function AdminApplications() {
                         </TableCell>
                         <TableCell>{application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : "—"}</TableCell>
                         <TableCell>
-                          <Badge className={statusConfig[application.status as keyof typeof statusConfig].color}>
+                          <Badge className={statusStyle(application.status).color}>
                             <div className="flex items-center">
-                              {statusConfig[application.status as keyof typeof statusConfig].icon}
+                              {statusStyle(application.status).icon}
                               {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
                             </div>
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
-                            <Button variant="ghost" size="icon">
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            {application.status === "approved" && (
+                              <Button asChild size="sm" variant="outline">
+                                <Link href="/admin/loans">Disburse</Link>
+                              </Button>
+                            )}
                             {(application.status === "pending" || application.status === "processing") && (
                               <>
                                 <Button variant="ghost" size="icon" className="text-green-500" onClick={() => updateStatus(application.id, "approved")}>
@@ -275,7 +309,8 @@ export default function AdminApplications() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
