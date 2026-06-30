@@ -200,9 +200,12 @@ public class ApplicationDtos {
     public static class StatusUpdateRequest {
         @NotBlank private String status;
         private String rejectionReason;
+        private String officerOverrideReason;
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
         public String getRejectionReason() { return rejectionReason; }
         public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+        public String getOfficerOverrideReason() { return officerOverrideReason; }
+        public void setOfficerOverrideReason(String officerOverrideReason) { this.officerOverrideReason = officerOverrideReason; }
     }
 }

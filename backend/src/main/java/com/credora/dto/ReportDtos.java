@@ -206,6 +206,9 @@ public class ReportDtos {
         private String loanType;
         private String customerName;
         private String customerEmail;
+        private String previewUrl;
+        private Long fileSize;
+        private String virusScanStatus;
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
         public String getDocumentType() { return documentType; }
@@ -228,6 +231,12 @@ public class ReportDtos {
         public void setCustomerName(String customerName) { this.customerName = customerName; }
         public String getCustomerEmail() { return customerEmail; }
         public void setCustomerEmail(String customerEmail) { this.customerEmail = customerEmail; }
+        public String getPreviewUrl() { return previewUrl; }
+        public void setPreviewUrl(String previewUrl) { this.previewUrl = previewUrl; }
+        public Long getFileSize() { return fileSize; }
+        public void setFileSize(Long fileSize) { this.fileSize = fileSize; }
+        public String getVirusScanStatus() { return virusScanStatus; }
+        public void setVirusScanStatus(String virusScanStatus) { this.virusScanStatus = virusScanStatus; }
     }
 
     public static class DocumentStatusRequest {
@@ -237,15 +246,30 @@ public class ReportDtos {
     }
 
     public static class CreditCheckRequest {
+        private Long userId;
         private String fullName;
         private String idNumber;
         private String phoneNumber;
+        private Boolean consentAccepted;
+        public Long getUserId() { return userId; }
+        public void setUserId(Long userId) { this.userId = userId; }
         public String getFullName() { return fullName; }
         public void setFullName(String fullName) { this.fullName = fullName; }
         public String getIdNumber() { return idNumber; }
         public void setIdNumber(String idNumber) { this.idNumber = idNumber; }
         public String getPhoneNumber() { return phoneNumber; }
         public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+        public Boolean getConsentAccepted() { return consentAccepted; }
+        public void setConsentAccepted(Boolean consentAccepted) { this.consentAccepted = consentAccepted; }
+    }
+
+    public static class ScoringFactor {
+        private String name;
+        private int value;
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public int getValue() { return value; }
+        public void setValue(int value) { this.value = value; }
     }
 
     public static class CreditCheckResponse {
@@ -253,6 +277,7 @@ public class ReportDtos {
         private String bureau;
         private String reportSummary;
         private String riskGrade;
+        private List<ScoringFactor> factors;
         public int getCreditScore() { return creditScore; }
         public void setCreditScore(int creditScore) { this.creditScore = creditScore; }
         public String getBureau() { return bureau; }
@@ -261,6 +286,8 @@ public class ReportDtos {
         public void setReportSummary(String reportSummary) { this.reportSummary = reportSummary; }
         public String getRiskGrade() { return riskGrade; }
         public void setRiskGrade(String riskGrade) { this.riskGrade = riskGrade; }
+        public List<ScoringFactor> getFactors() { return factors; }
+        public void setFactors(List<ScoringFactor> factors) { this.factors = factors; }
     }
 
     public static class OtpSendRequest {
@@ -322,19 +349,67 @@ public class ReportDtos {
 
     public static class NotificationResponse {
         private Long id;
+        private String title;
         private String message;
         private String channel;
+        private String category;
+        private boolean read;
         private String sentAt;
         private String dueDate;
+        private String createdAt;
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
         public String getMessage() { return message; }
         public void setMessage(String message) { this.message = message; }
         public String getChannel() { return channel; }
         public void setChannel(String channel) { this.channel = channel; }
+        public String getCategory() { return category; }
+        public void setCategory(String category) { this.category = category; }
+        public boolean isRead() { return read; }
+        public void setRead(boolean read) { this.read = read; }
         public String getSentAt() { return sentAt; }
         public void setSentAt(String sentAt) { this.sentAt = sentAt; }
         public String getDueDate() { return dueDate; }
         public void setDueDate(String dueDate) { this.dueDate = dueDate; }
+        public String getCreatedAt() { return createdAt; }
+        public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    }
+
+    public static class StkPushRequest {
+        private String phoneNumber;
+        private String amount;
+        public String getPhoneNumber() { return phoneNumber; }
+        public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+        public String getAmount() { return amount; }
+        public void setAmount(String amount) { this.amount = amount; }
+    }
+
+    public static class ApplicationNoteRequest {
+        private String noteType;
+        private String content;
+        public String getNoteType() { return noteType; }
+        public void setNoteType(String noteType) { this.noteType = noteType; }
+        public String getContent() { return content; }
+        public void setContent(String content) { this.content = content; }
+    }
+
+    public static class ApplicationNoteResponse {
+        private Long id;
+        private String officerEmail;
+        private String noteType;
+        private String content;
+        private String createdAt;
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public String getOfficerEmail() { return officerEmail; }
+        public void setOfficerEmail(String officerEmail) { this.officerEmail = officerEmail; }
+        public String getNoteType() { return noteType; }
+        public void setNoteType(String noteType) { this.noteType = noteType; }
+        public String getContent() { return content; }
+        public void setContent(String content) { this.content = content; }
+        public String getCreatedAt() { return createdAt; }
+        public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
     }
 }

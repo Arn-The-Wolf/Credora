@@ -1,18 +1,23 @@
 package com.credora.controller;
 
 import com.credora.dto.ApplicationDtos;
+import com.credora.dto.AuthDtos;
 import com.credora.dto.DashboardDtos;
 import com.credora.dto.ReportDtos;
-import com.credora.service.ApplicationService;
-import com.credora.service.LoanPaymentService;
-import com.credora.service.ReminderSchedulerService;
+import com.credora.model.Loan;
+import com.credora.repository.UserRepository;
+import com.credora.service.*;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 public class ApplicationController {
@@ -20,13 +25,22 @@ public class ApplicationController {
     private final ApplicationService applicationService;
     private final LoanPaymentService loanPaymentService;
     private final ReminderSchedulerService reminderSchedulerService;
+    private final NotificationService notificationService;
+    private final MpesaService mpesaService;
+    private final UserRepository userRepository;
 
     public ApplicationController(ApplicationService applicationService,
                                  LoanPaymentService loanPaymentService,
-                                 ReminderSchedulerService reminderSchedulerService) {
+                                 ReminderSchedulerService reminderSchedulerService,
+                                 NotificationService notificationService,
+                                 MpesaService mpesaService,
+                                 UserRepository userRepository) {
         this.applicationService = applicationService;
         this.loanPaymentService = loanPaymentService;
         this.reminderSchedulerService = reminderSchedulerService;
+        this.notificationService = notificationService;
+        this.mpesaService = mpesaService;
+        this.userRepository = userRepository;
     }
 
     private Long getUserId(Authentication auth) {
@@ -71,6 +85,24 @@ public class ApplicationController {
         return loanPaymentService.makePayment(getUserId(auth), id, req);
     }
 
+    @PostMapping("/loans/{id}/payments/mpesa")
+    public Map<String, Object> mpesaPayment(
+            Authentication auth,
+            @PathVariable Long id,
+            @RequestBody ReportDtos.StkPushRequest req) {
+        BigDecimal amount = req.getAmount() != null ? new BigDecimal(req.getAmount().replace(",", "")) : null;
+        return mpesaService.initiateStkPush(getUserId(auth), id, req.getPhoneNumber(), amount);
+    }
+
+    @PostMapping("/loans/{id}/payments/mpesa/simulate")
+    public Map<String, String> simulateMpesa(
+            Authentication auth,
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        mpesaService.simulateSandboxPayment(body.get("checkoutRequestId"));
+        return Map.of("status", "COMPLETED");
+    }
+
     @GetMapping("/loans/{id}/payments")
     public List<ReportDtos.PaymentResponse> getPayments(Authentication auth, @PathVariable Long id) {
         return loanPaymentService.getPayments(getUserId(auth), id);
@@ -91,6 +123,26 @@ public class ApplicationController {
 
     @GetMapping("/notifications")
     public List<ReportDtos.NotificationResponse> notifications(Authentication auth) {
-        return reminderSchedulerService.getUserNotifications(getUserId(auth));
+        Long userId = getUserId(auth);
+        var user = userRepository.findById(userId).orElseThrow();
+        List<ReportDtos.NotificationResponse> all = new ArrayList<>();
+        notificationService.listForUser(user).forEach(n -> {
+            ReportDtos.NotificationResponse r = new ReportDtos.NotificationResponse();
+            r.setId(n.getId());
+            r.setTitle(n.getTitle());
+            r.setMessage(n.getMessage());
+            r.setCategory(n.getCategory());
+            r.setRead(n.isRead());
+            r.setCreatedAt(n.getCreatedAt());
+            all.add(r);
+        });
+        all.addAll(reminderSchedulerService.getUserNotifications(userId));
+        return all;
+    }
+
+    @PatchMapping("/notifications/{id}/read")
+    public ResponseEntity<Void> markRead(Authentication auth, @PathVariable Long id) {
+        notificationService.markRead(getUserId(auth), id);
+        return ResponseEntity.noContent().build();
     }
 }

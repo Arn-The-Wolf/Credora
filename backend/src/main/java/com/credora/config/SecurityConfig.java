@@ -41,14 +41,15 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/signup", "/auth/signup-institution", "/auth/login",
-                                "/auth/login-institution", "/auth/google").permitAll()
-                        .requestMatchers("/credit/check", "/verify/**").permitAll()
+                                "/auth/login-institution", "/auth/google",
+                                "/auth/verify-email", "/auth/forgot-password", "/auth/reset-password").permitAll()
+                        .requestMatchers("/credit/check", "/verify/**", "/webhooks/**").permitAll()
                         .requestMatchers("/auth/**", "/actuator/health", "/health").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("INSTITUTION")
                         .anyRequest().authenticated())
-                .addFilterBefore(rateLimitFilter, JwtAuthFilter.class)
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
@@ -57,7 +58,8 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(corsOrigins.split(",")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
+        config.setExposedHeaders(List.of("Authorization"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -66,6 +68,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(12);
     }
 }

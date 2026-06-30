@@ -6,8 +6,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
@@ -19,7 +17,7 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<AuthDtos.AuthResponse> signupApplicant(@Valid @RequestBody AuthDtos.ApplicantSignupRequest req) {
+    public ResponseEntity<AuthDtos.MessageResponse> signupApplicant(@Valid @RequestBody AuthDtos.ApplicantSignupRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.signupApplicant(req));
     }
 
@@ -30,17 +28,32 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthDtos.AuthResponse> loginApplicant(@Valid @RequestBody AuthDtos.LoginRequest req) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.loginApplicant(req));
+        return ResponseEntity.ok(authService.loginApplicant(req));
     }
 
     @PostMapping("/login-institution")
     public ResponseEntity<AuthDtos.AuthResponse> loginInstitution(@Valid @RequestBody AuthDtos.LoginRequest req) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.loginInstitution(req));
+        return ResponseEntity.ok(authService.loginInstitution(req));
     }
 
     @PostMapping("/google")
     public ResponseEntity<AuthDtos.AuthResponse> googleAuth(@Valid @RequestBody AuthDtos.GoogleAuthRequest req) {
         return ResponseEntity.ok(authService.googleAuth(req));
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<AuthDtos.MessageResponse> verifyEmail(@Valid @RequestBody AuthDtos.VerifyEmailRequest req) {
+        return ResponseEntity.ok(authService.verifyEmail(req));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<AuthDtos.MessageResponse> forgotPassword(@Valid @RequestBody AuthDtos.ForgotPasswordRequest req) {
+        return ResponseEntity.ok(authService.forgotPassword(req));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<AuthDtos.MessageResponse> resetPassword(@Valid @RequestBody AuthDtos.ResetPasswordRequest req) {
+        return ResponseEntity.ok(authService.resetPassword(req));
     }
 
     @PatchMapping("/profile")
@@ -49,6 +62,12 @@ public class AuthController {
             @RequestBody AuthDtos.ProfileUpdateRequest req) {
         Long userId = (Long) auth.getDetails();
         return ResponseEntity.ok(authService.updateProfile(userId, req));
+    }
+
+    @DeleteMapping("/account")
+    public ResponseEntity<AuthDtos.MessageResponse> deleteAccount(org.springframework.security.core.Authentication auth) {
+        Long userId = (Long) auth.getDetails();
+        return ResponseEntity.ok(authService.deleteAccount(userId));
     }
 
     @GetMapping("/me")
@@ -63,13 +82,5 @@ public class AuthController {
             return ResponseEntity.ok(authService.getInstitution(entityId));
         }
         return ResponseEntity.ok(authService.getUser(entityId));
-    }
-}
-
-@RestController
-class HealthController {
-    @GetMapping({"/health", "/actuator/health"})
-    public Map<String, String> health() {
-        return Map.of("status", "UP");
     }
 }

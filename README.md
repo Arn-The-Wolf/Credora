@@ -35,7 +35,25 @@ docker compose up --build
 | Frontend | http://localhost:3000 |
 | Backend API | http://localhost:8080 |
 | AI Service | http://localhost:8000 |
+| MailHog (emails) | http://localhost:8025 |
+| MinIO Console | http://localhost:9001 |
 | PostgreSQL | localhost:5432 |
+
+## Demo accounts (auto-seeded on startup)
+
+| Role | Email | Password |
+|------|-------|----------|
+| Applicant | demo@credora.test | Password123! |
+| Institution admin | admin@credora.test | Password123! |
+
+## Launch checklist
+
+1. `docker compose up --build -d`
+2. Wait ~2 min for all services healthy
+3. Open http://localhost:3000 — login as demo applicant
+4. Apply for a loan → admin approves at http://localhost:3000/admin
+5. Disburse approved loan via admin API or UI
+6. Pay via M-Pesa button on Manage Loans
 
 ## Local development (without Docker)
 

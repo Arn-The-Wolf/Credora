@@ -33,6 +33,8 @@ public class Loan {
     private LocalDate startDate;
     private LocalDate nextPaymentDate;
     private Boolean autoPayEnabled;
+    private String disbursementStatus;
+    private Instant disbursedAt;
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -42,7 +44,8 @@ public class Loan {
     void onCreate() {
         createdAt = Instant.now();
         if (monthsPaid == null) monthsPaid = 0;
-        if (status == null) status = "ACTIVE";
+        if (status == null) status = "PENDING_DISBURSEMENT";
+        if (disbursementStatus == null) disbursementStatus = "PENDING";
     }
 
     public Long getId() { return id; }
@@ -73,5 +76,9 @@ public class Loan {
     public void setNextPaymentDate(LocalDate nextPaymentDate) { this.nextPaymentDate = nextPaymentDate; }
     public Boolean getAutoPayEnabled() { return autoPayEnabled; }
     public void setAutoPayEnabled(Boolean autoPayEnabled) { this.autoPayEnabled = autoPayEnabled; }
+    public String getDisbursementStatus() { return disbursementStatus; }
+    public void setDisbursementStatus(String disbursementStatus) { this.disbursementStatus = disbursementStatus; }
+    public Instant getDisbursedAt() { return disbursedAt; }
+    public void setDisbursedAt(Instant disbursedAt) { this.disbursedAt = disbursedAt; }
     public Instant getCreatedAt() { return createdAt; }
 }

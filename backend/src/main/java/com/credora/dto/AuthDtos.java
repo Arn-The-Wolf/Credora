@@ -15,6 +15,8 @@ public class AuthDtos {
         private String employmentStatus;
         private String monthlyIncome;
         private String idPassportNumber;
+        private Boolean acceptTerms;
+        private Boolean acceptPrivacy;
         public String getFullName() { return fullName; }
         public void setFullName(String fullName) { this.fullName = fullName; }
         public String getEmail() { return email; }
@@ -31,6 +33,10 @@ public class AuthDtos {
         public void setMonthlyIncome(String monthlyIncome) { this.monthlyIncome = monthlyIncome; }
         public String getIdPassportNumber() { return idPassportNumber; }
         public void setIdPassportNumber(String idPassportNumber) { this.idPassportNumber = idPassportNumber; }
+        public Boolean getAcceptTerms() { return acceptTerms; }
+        public void setAcceptTerms(Boolean acceptTerms) { this.acceptTerms = acceptTerms; }
+        public Boolean getAcceptPrivacy() { return acceptPrivacy; }
+        public void setAcceptPrivacy(Boolean acceptPrivacy) { this.acceptPrivacy = acceptPrivacy; }
     }
 
     public static class InstitutionSignupRequest {
@@ -96,6 +102,7 @@ public class AuthDtos {
         private String employerName;
         private String bankName;
         private String bankAccountNumber;
+        private Boolean emailVerified;
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
         public String getFullName() { return fullName; }
@@ -124,6 +131,8 @@ public class AuthDtos {
         public void setBankName(String bankName) { this.bankName = bankName; }
         public String getBankAccountNumber() { return bankAccountNumber; }
         public void setBankAccountNumber(String bankAccountNumber) { this.bankAccountNumber = bankAccountNumber; }
+        public Boolean getEmailVerified() { return emailVerified; }
+        public void setEmailVerified(Boolean emailVerified) { this.emailVerified = emailVerified; }
     }
 
     public static class ProfileUpdateRequest {
@@ -202,5 +211,34 @@ public class AuthDtos {
         public void setInstitutionEmail(String institutionEmail) { this.institutionEmail = institutionEmail; }
         public String getPhoneNumber() { return phoneNumber; }
         public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+    }
+
+    public static class ForgotPasswordRequest {
+        @Email @NotBlank private String email;
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+    }
+
+    public static class ResetPasswordRequest {
+        @NotBlank private String token;
+        @NotBlank private String newPassword;
+        public String getToken() { return token; }
+        public void setToken(String token) { this.token = token; }
+        public String getNewPassword() { return newPassword; }
+        public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
+    }
+
+    public static class VerifyEmailRequest {
+        @NotBlank private String token;
+        public String getToken() { return token; }
+        public void setToken(String token) { this.token = token; }
+    }
+
+    public static class MessageResponse {
+        private String message;
+        public MessageResponse() {}
+        public MessageResponse(String message) { this.message = message; }
+        public String getMessage() { return message; }
+        public void setMessage(String message) { this.message = message; }
     }
 }

@@ -100,16 +100,21 @@ export function buildApplicationPayload(fixture: (typeof LOAN_FIXTURES)[number])
 
 export async function signupAndLogin(request: import("@playwright/test").APIRequestContext) {
   const email = `e2e_${Date.now()}@credora.test`
+  const password = "Password123!"
   const signup = await request.post(`${API}/auth/signup`, {
     data: {
       fullName: "E2E User",
       email,
-      password: "password123",
+      password,
       monthlyIncome: "5000",
       phoneNumber: "+254712345678",
+      acceptTerms: true,
+      acceptPrivacy: true,
     },
   })
   expect(signup.ok()).toBeTruthy()
-  const body = await signup.json()
-  return { token: body.token as string, email, password: "password123" }
+  const login = await request.post(`${API}/auth/login`, { data: { email, password } })
+  expect(login.ok()).toBeTruthy()
+  const body = await login.json()
+  return { token: body.token as string, email, password }
 }

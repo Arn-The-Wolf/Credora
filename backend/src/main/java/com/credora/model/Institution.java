@@ -21,13 +21,18 @@ public class Institution {
     @Column(nullable = false)
     private String password;
     private String phoneNumber;
+    @Enumerated(EnumType.STRING)
+    private InstitutionRole role;
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
     public Institution() {}
 
     @PrePersist
-    void onCreate() { createdAt = Instant.now(); }
+    void onCreate() {
+        createdAt = Instant.now();
+        if (role == null) role = InstitutionRole.LOAN_OFFICER;
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -47,5 +52,7 @@ public class Institution {
     public void setPassword(String password) { this.password = password; }
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+    public InstitutionRole getRole() { return role; }
+    public void setRole(InstitutionRole role) { this.role = role; }
     public Instant getCreatedAt() { return createdAt; }
 }

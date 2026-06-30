@@ -8,18 +8,36 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
     show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+  flyway:
+    enabled: true
   jackson:
     serialization:
       write-dates-as-timestamps: false
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
 
 server:
   port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
 
 credora:
   jwt:
@@ -33,6 +51,31 @@ credora:
     mode: ${CREDIT_BUREAU_MODE:sandbox}
   sms:
     mode: ${SMS_MODE:sandbox}
+    africastalking-api-key: ${AT_API_KEY:}
+    africastalking-username: ${AT_USERNAME:}
+    sender-id: ${SMS_SENDER_ID:CREDORA}
+  mpesa:
+    mode: ${MPESA_MODE:sandbox}
+    consumer-key: ${MPESA_CONSUMER_KEY:}
+    consumer-secret: ${MPESA_CONSUMER_SECRET:}
+    shortcode: ${MPESA_SHORTCODE:174379}
+    passkey: ${MPESA_PASSKEY:}
+    callback-url: ${MPESA_CALLBACK_URL:http://localhost:8080/webhooks/mpesa}
+    base-url: ${MPESA_BASE_URL:https://sandbox.safaricom.co.ke}
+  storage:
+    mode: ${STORAGE_MODE:local}
+    bucket: ${STORAGE_BUCKET:credora-docs}
+    endpoint: ${STORAGE_ENDPOINT:}
+    access-key: ${STORAGE_ACCESS_KEY:}
+    secret-key: ${STORAGE_SECRET_KEY:}
+    region: ${STORAGE_REGION:us-east-1}
+  email:
+    mode: ${EMAIL_MODE:console}
+    from: ${EMAIL_FROM:noreply@credora.test}
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  auth:
+    require-email-verification: ${REQUIRE_EMAIL_VERIFICATION:true}
+    max-login-attempts: ${MAX_LOGIN_ATTEMPTS:5}
 
 logging:
   level:

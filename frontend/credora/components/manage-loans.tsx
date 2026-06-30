@@ -10,12 +10,16 @@ import { LineChart, ChartContainer } from "@/components/ui/charts"
 import { Calendar, CheckCircle, Clock, DollarSign, FileText, AlertCircle, Download, CreditCard, Loader2 } from "lucide-react"
 import Layout from "@/components/layout"
 import { api, LoanResponse, PaymentResponse } from "@/lib/api"
+import { formatKES } from "@/lib/format"
+import PaymentScheduleDialog from "@/components/payment-schedule-dialog"
 
 export default function ManageLoans() {
   const [activeTab, setActiveTab] = useState("active")
   const [apiLoans, setApiLoans] = useState<LoanResponse[]>([])
   const [payingId, setPayingId] = useState<number | null>(null)
   const [autopayId, setAutopayId] = useState<number | null>(null)
+  const [scheduleLoanId, setScheduleLoanId] = useState<number | null>(null)
+  const [mpesaId, setMpesaId] = useState<number | null>(null)
 
   const loadLoans = () => {
     api.get<LoanResponse[]>("/loans").then((r) => setApiLoans(r.data)).catch(() => {})
@@ -44,6 +48,20 @@ export default function ManageLoans() {
       loadLoans()
     } finally {
       setAutopayId(null)
+    }
+  }
+
+  const payWithMpesa = async (loanId: number, amount: number) => {
+    setMpesaId(loanId)
+    try {
+      const { data } = await api.post<{ checkoutRequestId: string; sandboxSimulate?: boolean }>(
+        `/loans/${loanId}/payments/mpesa`, { amount: String(amount) })
+      if (data.sandboxSimulate && data.checkoutRequestId) {
+        await api.post(`/loans/${loanId}/payments/mpesa/simulate`, { checkoutRequestId: data.checkoutRequestId })
+      }
+      loadLoans()
+    } finally {
+      setMpesaId(null)
     }
   }
 
@@ -123,7 +141,7 @@ export default function ManageLoans() {
                 <span className="text-2xl font-bold">{loans.length}</span>
                 <div className="flex items-center mt-2 text-sm text-blue-500">
                   <span>
-                    ${loans.reduce((sum, loan) => sum + loan.remainingAmount, 0).toLocaleString()} outstanding
+                    {formatKES(loans.reduce((sum, loan) => sum + loan.remainingAmount, 0))} outstanding
                   </span>
                 </div>
               </div>
@@ -139,7 +157,7 @@ export default function ManageLoans() {
                     : "No payments due"}
                 </span>
                 <div className="flex items-center mt-2 text-sm text-green-500">
-                  <span>${upcomingPayments.length > 0 ? upcomingPayments[0].amount : 0} payment amount</span>
+                  <span>{formatKES(upcomingPayments.length > 0 ? upcomingPayments[0].amount : 0)} payment amount</span>
                 </div>
               </div>
             </CardContent>
@@ -199,11 +217,11 @@ export default function ManageLoans() {
                         </div>
                         <div className="text-right">
                           <div className="font-medium">
-                            ${loan.remainingAmount.toLocaleString()}{" "}
+                            {formatKES(loan.remainingAmount)}{" "}
                             <span className="text-sm text-gray-500">remaining</span>
                           </div>
                           <div className="text-sm text-gray-500">
-                            of ${loan.amount.toLocaleString()} original amount
+                            of {formatKES(loan.amount)} original amount
                           </div>
                         </div>
                       </div>
@@ -223,7 +241,7 @@ export default function ManageLoans() {
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                           <div className="border rounded-lg p-3">
                             <div className="text-sm text-gray-500">Next Payment</div>
-                            <div className="text-lg font-semibold">${loan.nextPayment.amount}</div>
+                            <div className="text-lg font-semibold">{formatKES(loan.nextPayment.amount)}</div>
                             <div className="text-xs text-blue-500">
                               Due {new Date(loan.nextPayment.date).toLocaleDateString()}
                             </div>
@@ -273,7 +291,7 @@ export default function ManageLoans() {
 
                         {/* Action buttons */}
                         <div className="flex justify-between mt-4">
-                          <Button variant="outline" className="text-sm">
+                          <Button variant="outline" className="text-sm" onClick={() => loan.dbId && setScheduleLoanId(loan.dbId)}>
                             <FileText className="h-4 w-4 mr-2" />
                             View Payment Schedule
                           </Button>
@@ -290,6 +308,15 @@ export default function ManageLoans() {
                                 <Clock className="h-4 w-4 mr-2" />
                               )}
                               {loan.autoPayEnabled ? "Disable Auto-Pay" : "Set Up Auto-Pay"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="text-sm"
+                              disabled={mpesaId === loan.dbId}
+                              onClick={() => loan.dbId && payWithMpesa(loan.dbId, loan.nextPayment.amount)}
+                            >
+                              {mpesaId === loan.dbId ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                              Pay via M-Pesa
                             </Button>
                             <Button
                               className="bg-[#0a1525] hover:bg-[#1a2b45] text-sm"
@@ -465,6 +492,14 @@ export default function ManageLoans() {
             </Button>
           </CardFooter>
         </Card>
+
+        {scheduleLoanId && (
+          <PaymentScheduleDialog
+            loanId={scheduleLoanId}
+            open={!!scheduleLoanId}
+            onOpenChange={(o) => !o && setScheduleLoanId(null)}
+          />
+        )}
 
         {/* Help Section */}
         <Card className="bg-blue-50 border-blue-200">

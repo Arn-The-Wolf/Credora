@@ -27,13 +27,24 @@ public class User {
     private String employerName;
     private String bankName;
     private String bankAccountNumber;
+    private Boolean emailVerified;
+    private Instant termsAcceptedAt;
+    private Instant privacyAcceptedAt;
+    private Instant creditConsentAt;
+    private Integer failedLoginAttempts;
+    private Instant lockedUntil;
+    private Instant deletedAt;
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
     public User() {}
 
     @PrePersist
-    void onCreate() { createdAt = Instant.now(); }
+    void onCreate() {
+        createdAt = Instant.now();
+        if (emailVerified == null) emailVerified = false;
+        if (failedLoginAttempts == null) failedLoginAttempts = 0;
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -65,5 +76,19 @@ public class User {
     public void setBankName(String bankName) { this.bankName = bankName; }
     public String getBankAccountNumber() { return bankAccountNumber; }
     public void setBankAccountNumber(String bankAccountNumber) { this.bankAccountNumber = bankAccountNumber; }
+    public Boolean getEmailVerified() { return emailVerified; }
+    public void setEmailVerified(Boolean emailVerified) { this.emailVerified = emailVerified; }
+    public Instant getTermsAcceptedAt() { return termsAcceptedAt; }
+    public void setTermsAcceptedAt(Instant termsAcceptedAt) { this.termsAcceptedAt = termsAcceptedAt; }
+    public Instant getPrivacyAcceptedAt() { return privacyAcceptedAt; }
+    public void setPrivacyAcceptedAt(Instant privacyAcceptedAt) { this.privacyAcceptedAt = privacyAcceptedAt; }
+    public Instant getCreditConsentAt() { return creditConsentAt; }
+    public void setCreditConsentAt(Instant creditConsentAt) { this.creditConsentAt = creditConsentAt; }
+    public Integer getFailedLoginAttempts() { return failedLoginAttempts; }
+    public void setFailedLoginAttempts(Integer failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
+    public Instant getLockedUntil() { return lockedUntil; }
+    public void setLockedUntil(Instant lockedUntil) { this.lockedUntil = lockedUntil; }
+    public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
     public Instant getCreatedAt() { return createdAt; }
 }

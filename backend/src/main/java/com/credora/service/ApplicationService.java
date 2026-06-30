@@ -12,6 +12,7 @@ import com.credora.repository.LoanApplicationRepository;
 import com.credora.repository.LoanRepository;
 import com.credora.repository.UserRepository;
 import com.credora.repository.ApplicationDocumentRepository;
+import com.credora.repository.ApplicationNoteRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,12 +38,24 @@ public class ApplicationService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ApplicationDocumentRepository documentRepository;
     private final CreditBureauService creditBureauService;
+    private final DocumentService documentService;
+    private final NotificationService notificationService;
+    private final EmailService emailService;
+    private final AuditService auditService;
+    private final ConsentService consentService;
+    private final ApplicationNoteRepository noteRepository;
 
     public ApplicationService(LoanApplicationRepository applicationRepository, LoanRepository loanRepository,
                               UserRepository userRepository, AiScoringService aiScoringService,
                               LoanTypeValidator loanTypeValidator,
                               ApplicationDocumentRepository documentRepository,
-                              CreditBureauService creditBureauService) {
+                              CreditBureauService creditBureauService,
+                              DocumentService documentService,
+                              NotificationService notificationService,
+                              EmailService emailService,
+                              AuditService auditService,
+                              ConsentService consentService,
+                              ApplicationNoteRepository noteRepository) {
         this.applicationRepository = applicationRepository;
         this.loanRepository = loanRepository;
         this.userRepository = userRepository;
@@ -50,6 +63,12 @@ public class ApplicationService {
         this.loanTypeValidator = loanTypeValidator;
         this.documentRepository = documentRepository;
         this.creditBureauService = creditBureauService;
+        this.documentService = documentService;
+        this.notificationService = notificationService;
+        this.emailService = emailService;
+        this.auditService = auditService;
+        this.consentService = consentService;
+        this.noteRepository = noteRepository;
     }
 
     @Transactional
@@ -74,7 +93,9 @@ public class ApplicationService {
         }
         Integer creditScore = parseCreditScore(req.getCreditScore());
         if (req.getIdPassportNumber() != null && !req.getIdPassportNumber().isBlank()) {
+            consentService.recordConsent(user, "CREDIT_BUREAU", "1.0", null);
             ReportDtos.CreditCheckRequest cr = new ReportDtos.CreditCheckRequest();
+            cr.setUserId(userId);
             cr.setFullName(user.getFullName());
             cr.setIdNumber(req.getIdPassportNumber());
             cr.setPhoneNumber(req.getPhone());
@@ -122,6 +143,7 @@ public class ApplicationService {
         app.setRecommendedAmount(scoring.getRecommendedAmount());
         app.setEstimatedApr(scoring.getEstimatedApr());
         app.setAiSummary(scoring.getSummary());
+        app.setAiRecommendation(scoring.getRecommendation());
         app.setStatus(mapRecommendationToStatus(scoring.getRecommendation(), scoring.getApprovalProbability()));
 
         if (app.getStatus() == ApplicationStatus.REJECTED) {
@@ -132,20 +154,14 @@ public class ApplicationService {
 
         if (req.getDocuments() != null) {
             for (ReportDtos.DocumentUploadRequest doc : req.getDocuments()) {
-                if (doc.getFileName() == null || doc.getContentBase64() == null) continue;
-                ApplicationDocument ad = new ApplicationDocument();
-                ad.setApplication(app);
-                ad.setDocumentType(doc.getDocumentType());
-                ad.setFileName(doc.getFileName());
-                ad.setContentType(doc.getContentType());
-                ad.setContentBase64(doc.getContentBase64());
-                documentRepository.save(ad);
+                documentService.saveDocument(app, doc);
             }
         }
 
-        if (app.getStatus() == ApplicationStatus.APPROVED) {
-            createLoanFromApplication(app);
-        }
+        notificationService.notify(user, "Application submitted",
+                "Your application " + app.getReferenceId() + " is under review.", "APPLICATION");
+        emailService.sendApplicationStatusEmail(user.getEmail(), app.getReferenceId(), "Submitted",
+                "We received your application and our team will review it shortly.");
 
         ApplicationDtos.ApplicationResponse response = toResponse(app);
         response.setScoring(scoring);
@@ -181,21 +197,73 @@ public class ApplicationService {
     }
 
     @Transactional
-    public ApplicationDtos.ApplicationResponse updateStatus(Long appId, ApplicationDtos.StatusUpdateRequest req) {
+    public ApplicationDtos.ApplicationResponse updateStatus(Long appId, ApplicationDtos.StatusUpdateRequest req,
+                                                            Long officerId, String officerEmail) {
         LoanApplication app = applicationRepository.findById(appId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
 
         ApplicationStatus newStatus = ApplicationStatus.valueOf(req.getStatus().toUpperCase());
         app.setStatus(newStatus);
+        if (req.getOfficerOverrideReason() != null) {
+            app.setOfficerOverrideReason(req.getOfficerOverrideReason());
+        }
         if (newStatus == ApplicationStatus.APPROVED) {
             app.setApprovalDate(LocalDate.now());
             createLoanFromApplication(app);
+            notificationService.notify(app.getUser(), "Application approved",
+                    "Your loan " + app.getReferenceId() + " was approved. Funds will be disbursed after final review.",
+                    "APPLICATION");
+            emailService.sendApplicationStatusEmail(app.getUser().getEmail(), app.getReferenceId(), "Approved",
+                    "Congratulations! Your application was approved.");
         } else if (newStatus == ApplicationStatus.REJECTED) {
             app.setRejectionReason(req.getRejectionReason() != null ? req.getRejectionReason()
                     : "Application rejected by institution reviewer.");
+            notificationService.notify(app.getUser(), "Application update",
+                    "Your application " + app.getReferenceId() + " was not approved.", "APPLICATION");
+            emailService.sendApplicationStatusEmail(app.getUser().getEmail(), app.getReferenceId(), "Rejected",
+                    app.getRejectionReason());
+        } else if (newStatus == ApplicationStatus.MORE_INFO_REQUIRED) {
+            notificationService.notify(app.getUser(), "More information needed",
+                    "Please upload additional documents for " + app.getReferenceId(), "APPLICATION");
+            emailService.sendApplicationStatusEmail(app.getUser().getEmail(), app.getReferenceId(), "More info needed",
+                    "Our team needs additional documents to continue reviewing your application.");
         }
         app = applicationRepository.save(app);
+        auditService.log("INSTITUTION", officerId, officerEmail, "APPLICATION_" + newStatus.name(),
+                "APPLICATION", appId, req.getOfficerOverrideReason());
         return toResponse(app);
+    }
+
+    @Transactional
+    public ApplicationDtos.ApplicationResponse assignOfficer(Long appId, Long officerId, String officerEmail) {
+        LoanApplication app = applicationRepository.findById(appId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+        app.setAssignedOfficerId(officerId);
+        app = applicationRepository.save(app);
+        auditService.log("INSTITUTION", officerId, officerEmail, "ASSIGN_APPLICATION", "APPLICATION", appId, null);
+        return toResponse(app);
+    }
+
+    @Transactional
+    public ReportDtos.ApplicationNoteResponse addNote(Long appId, Long officerId, String officerEmail,
+                                                      ReportDtos.ApplicationNoteRequest req) {
+        LoanApplication app = applicationRepository.findById(appId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+        ApplicationNote note = new ApplicationNote();
+        note.setApplication(app);
+        note.setOfficerId(officerId);
+        note.setOfficerEmail(officerEmail);
+        note.setNoteType(req.getNoteType() != null ? req.getNoteType() : "NOTE");
+        note.setContent(req.getContent());
+        note = noteRepository.save(note);
+        auditService.log("INSTITUTION", officerId, officerEmail, "APPLICATION_NOTE", "APPLICATION", appId, req.getContent());
+        ReportDtos.ApplicationNoteResponse r = new ReportDtos.ApplicationNoteResponse();
+        r.setId(note.getId());
+        r.setOfficerEmail(note.getOfficerEmail());
+        r.setNoteType(note.getNoteType());
+        r.setContent(note.getContent());
+        r.setCreatedAt(note.getCreatedAt().toString());
+        return r;
     }
 
     public DashboardDtos.DashboardSummary getApplicantDashboard(Long userId) {
@@ -297,7 +365,8 @@ public class ApplicationService {
         loan.setInterestRate(BigDecimal.valueOf(rate));
         loan.setTermMonths(app.getTermMonths());
         loan.setMonthsPaid(0);
-        loan.setStatus("ACTIVE");
+        loan.setStatus("PENDING_DISBURSEMENT");
+        loan.setDisbursementStatus("PENDING");
         loan.setMonthlyPayment(payment);
         loan.setRemainingBalance(app.getLoanAmount());
         loan.setStartDate(LocalDate.now());
@@ -350,9 +419,6 @@ public class ApplicationService {
     }
 
     private ApplicationStatus mapRecommendationToStatus(String recommendation, Double probability) {
-        if ("APPROVE".equalsIgnoreCase(recommendation) || (probability != null && probability >= 0.75)) {
-            return ApplicationStatus.APPROVED;
-        }
         if ("REJECT".equalsIgnoreCase(recommendation) || (probability != null && probability < 0.4)) {
             return ApplicationStatus.REJECTED;
         }

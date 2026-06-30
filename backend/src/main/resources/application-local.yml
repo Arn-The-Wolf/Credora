@@ -10,6 +10,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
   h2:
     console:
       enabled: true
@@ -17,3 +19,7 @@ spring:
 credora:
   ai:
     service-url: http://localhost:8000
+  auth:
+    require-email-verification: false
+  email:
+    mode: console

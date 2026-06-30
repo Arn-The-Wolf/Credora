@@ -25,6 +25,8 @@ export default function SignUpPage() {
     employmentStatus: "",
     monthlyIncome: "",
     idPassportNumber: "",
+    acceptTerms: false,
+    acceptPrivacy: false,
   })
 
   // Bank form state
@@ -88,17 +90,18 @@ export default function SignUpPage() {
           !address ||
           !employmentStatus ||
           !monthlyIncome ||
-          !idPassportNumber
+          !idPassportNumber ||
+          !applicantForm.acceptTerms ||
+          !applicantForm.acceptPrivacy
         ) {
-          setError("Please fill in all required fields.")
+          setError("Please fill in all required fields and accept terms & privacy policy.")
           setLoading(false)
           return
         }
-        console.log( "the data are: ",applicantForm);
-        const response = await api.post("/auth/signup", applicantForm)
+        const response = await api.post<{ message: string }>("/auth/signup", applicantForm)
 
         if (response.status === 200 || response.status === 201) {
-          setSuccess("Applicant account created successfully! Redirecting to login page...")
+          setSuccess(response.data.message || "Account created! Check your email to verify, then sign in.")
           setApplicantForm({
             fullName: "",
             email: "",
@@ -108,6 +111,8 @@ export default function SignUpPage() {
             employmentStatus: "",
             monthlyIncome: "",
             idPassportNumber: "",
+            acceptTerms: false,
+            acceptPrivacy: false,
           })
         }
       } else {
@@ -315,6 +320,18 @@ export default function SignUpPage() {
                   className="w-full ml-3 outline-none text-[#333] text-lg"
                 />
               </div>
+            </div>
+            <div className="space-y-2 text-sm text-gray-600 px-1">
+              <label className="flex items-start gap-2">
+                <input type="checkbox" checked={applicantForm.acceptTerms}
+                  onChange={(e) => setApplicantForm((p) => ({ ...p, acceptTerms: e.target.checked }))} />
+                I accept the Terms of Service
+              </label>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" checked={applicantForm.acceptPrivacy}
+                  onChange={(e) => setApplicantForm((p) => ({ ...p, acceptPrivacy: e.target.checked }))} />
+                I accept the Privacy Policy (Kenya Data Protection Act)
+              </label>
             </div>
             <div className="pt-3">
               <button

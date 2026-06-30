@@ -23,13 +23,19 @@ public class ReminderSchedulerService {
     private final LoanRepository loanRepository;
     private final PaymentReminderRepository reminderRepository;
     private final LoanPaymentService loanPaymentService;
+    private final EmailService emailService;
+    private final SmsService smsService;
 
     public ReminderSchedulerService(LoanRepository loanRepository,
                                       PaymentReminderRepository reminderRepository,
-                                      LoanPaymentService loanPaymentService) {
+                                      LoanPaymentService loanPaymentService,
+                                      EmailService emailService,
+                                      SmsService smsService) {
         this.loanRepository = loanRepository;
         this.reminderRepository = reminderRepository;
         this.loanPaymentService = loanPaymentService;
+        this.emailService = emailService;
+        this.smsService = smsService;
     }
 
     @Scheduled(cron = "0 0 8 * * *")
@@ -52,9 +58,14 @@ public class ReminderSchedulerService {
             reminder.setDueDate(loan.getNextPaymentDate());
             reminder.setChannel("SMS");
             reminder.setMessage(String.format(
-                    "Credora reminder: Your loan payment of $%s is due on %s. Ref: %s",
+                    "Credora reminder: Your loan payment of KES %s is due on %s. Ref: %s",
                     loan.getMonthlyPayment(), loan.getNextPaymentDate(), loan.getReferenceId()));
             reminderRepository.save(reminder);
+            emailService.sendPaymentReminderEmail(loan.getUser().getEmail(), loan.getReferenceId(),
+                    loan.getMonthlyPayment().toPlainString(), loan.getNextPaymentDate().toString());
+            if (loan.getUser().getPhoneNumber() != null) {
+                smsService.sendNotification(loan.getUser().getPhoneNumber(), reminder.getMessage());
+            }
             log.info("Payment reminder sent: {} -> {}", loan.getUser().getEmail(), reminder.getMessage());
         }
     }

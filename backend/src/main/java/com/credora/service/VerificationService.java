@@ -20,13 +20,15 @@ public class VerificationService {
 
     private static final Logger log = LoggerFactory.getLogger(VerificationService.class);
     private final OtpVerificationRepository otpRepository;
+    private final SmsService smsService;
     private final Random random = new Random();
 
     @Value("${credora.sms.mode:sandbox}")
     private String smsMode;
 
-    public VerificationService(OtpVerificationRepository otpRepository) {
+    public VerificationService(OtpVerificationRepository otpRepository, SmsService smsService) {
         this.otpRepository = otpRepository;
+        this.smsService = smsService;
     }
 
     @Transactional
@@ -45,7 +47,7 @@ public class VerificationService {
         if ("sandbox".equals(smsMode)) {
             log.info("[SANDBOX SMS] OTP {} sent to {}", code, otp.getPhoneNumber());
         } else {
-            log.info("[SMS] OTP sent to {} via provider", otp.getPhoneNumber());
+            smsService.sendOtp(otp.getPhoneNumber(), code);
         }
 
         ReportDtos.OtpSendResponse resp = new ReportDtos.OtpSendResponse();

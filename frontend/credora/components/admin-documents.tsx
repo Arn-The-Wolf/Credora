@@ -16,6 +16,8 @@ interface AdminDocument {
   fileName: string
   status: string
   uploadedAt: string
+  previewUrl?: string
+  contentType?: string
   customerName?: string
   customerEmail?: string
   applicationRef?: string
@@ -42,6 +44,20 @@ export default function AdminDocuments() {
     try {
       await api.patch(`/admin/documents/${id}/status`, { status })
       load()
+    } catch (e) {
+      setError(getErrorMessage(e))
+    }
+  }
+
+  const previewDocument = async (doc: AdminDocument) => {
+    try {
+      if (doc.previewUrl) {
+        window.open(doc.previewUrl, "_blank")
+        return
+      }
+      const res = await api.get(`/admin/documents/${doc.id}/download`, { responseType: "blob" })
+      const blob = new Blob([res.data], { type: doc.contentType || "application/pdf" })
+      window.open(URL.createObjectURL(blob), "_blank")
     } catch (e) {
       setError(getErrorMessage(e))
     }
@@ -123,6 +139,9 @@ export default function AdminDocuments() {
                     <TableCell className="text-sm">{doc.uploadedAt?.slice(0, 10)}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => previewDocument(doc)}>
+                          <Eye className="h-4 w-4 mr-1" /> Preview
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => updateStatus(doc.id, "APPROVED")}>
                           <CheckCircle className="h-4 w-4 text-green-600" />
                         </Button>

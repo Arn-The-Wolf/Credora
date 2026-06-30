@@ -45,7 +45,17 @@ public class LoanPaymentService {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             amount = loan.getMonthlyPayment();
         }
+        return processPayment(loan, amount, "MANUAL", null);
+    }
 
+    @Transactional
+    public ReportDtos.PaymentResponse applyExternalPayment(Long userId, Long loanId, BigDecimal amount,
+                                                           String externalRef, String method) {
+        Loan loan = getLoanForUser(userId, loanId);
+        return processPayment(loan, amount, method, externalRef);
+    }
+
+    private ReportDtos.PaymentResponse processPayment(Loan loan, BigDecimal amount, String method, String externalRef) {
         BigDecimal monthlyRate = loan.getInterestRate().divide(BigDecimal.valueOf(1200), 10, RoundingMode.HALF_UP);
         BigDecimal interestPortion = loan.getRemainingBalance().multiply(monthlyRate)
                 .setScale(2, RoundingMode.HALF_UP);
@@ -68,7 +78,8 @@ public class LoanPaymentService {
         payment.setAmount(amount);
         payment.setPrincipalPortion(principalPortion);
         payment.setInterestPortion(interestPortion);
-        payment.setReferenceNumber("PAY-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        payment.setReferenceNumber(externalRef != null ? externalRef
+                : "PAY-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         payment = paymentRepository.save(payment);
         loanRepository.save(loan);
 

@@ -1,6 +1,9 @@
 services:
   postgres:
     image: postgres:16-alpine
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       POSTGRES_DB: credora
       POSTGRES_USER: credora
@@ -17,6 +20,9 @@ services:
 
   ai:
     build: ./ai
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - "8000:8000"
     healthcheck:
@@ -26,8 +32,29 @@ services:
       retries: 5
       start_period: 30s
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: credora
+      MINIO_ROOT_PASSWORD: credora-minio-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - credora_minio:/data
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   backend:
     build: ./backend
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - "8080:8080"
     extra_hosts:
@@ -37,9 +64,23 @@ services:
       DATABASE_USER: credora
       DATABASE_PASSWORD: credora
       JWT_SECRET: credora-dev-secret-change-in-production-min-32-chars
-      AI_SERVICE_URL: http://host.docker.internal:8000
+      AI_SERVICE_URL: http://ai:8000
+      STORAGE_MODE: s3
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_ACCESS_KEY: credora
+      STORAGE_SECRET_KEY: credora-minio-secret
+      STORAGE_BUCKET: credora-docs
+      EMAIL_MODE: smtp
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      REQUIRE_EMAIL_VERIFICATION: "false"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
     depends_on:
       postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      ai:
         condition: service_healthy
 
   frontend:
@@ -47,6 +88,9 @@ services:
       context: ./frontend/credora
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8080
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     ports:
       - "3000:3000"
     environment:
@@ -58,3 +102,4 @@ services:
 
 volumes:
   credora_pg:
+  credora_minio:

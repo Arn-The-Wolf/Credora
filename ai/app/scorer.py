@@ -300,7 +300,13 @@ def _generate_training_data(n: int = 3000):
 
     approval_prob = 1 / (1 + np.exp(-(credit_scores - 550) / 60 + debt_to_income * 3))
 
-    approved = (approval_prob + rng.normal(0, 0.05, n) > 0.5).astype(int)
+    approved = (approval_prob + rng.normal(0, 0.15, n) > 0.5).astype(int)
+    # Ensure both outcomes exist for classifier training
+    counts = np.bincount(approved, minlength=2)
+    if counts[0] < 50:
+        approved[rng.choice(n, size=50, replace=False)] = 0
+    if counts[1] < 50:
+        approved[rng.choice(n, size=50, replace=False)] = 1
 
     return features, credit_scores, approved
 
@@ -321,16 +327,22 @@ def train_and_save_models() -> None:
     regressor_path = MODEL_DIR / "credit_score_regressor.joblib"
 
     if classifier_path.exists() and regressor_path.exists():
-
-        _regressor = joblib.load(regressor_path)
-
-        _classifier = joblib.load(classifier_path)
-
-        return
+        try:
+            _regressor = joblib.load(regressor_path)
+            _classifier = joblib.load(classifier_path)
+            return
+        except Exception:
+            classifier_path.unlink(missing_ok=True)
+            regressor_path.unlink(missing_ok=True)
 
     X, y_score, y_approve = _generate_training_data()
 
-    X_train, _, ys_train, _, ya_train, _ = train_test_split(X, y_score, y_approve, test_size=0.2, random_state=42)
+    X_train, _, ys_train, _, ya_train, _ = train_test_split(
+        X, y_score, y_approve, test_size=0.2, random_state=42
+    )
+    if len(np.unique(ya_train)) < 2:
+        ya_train[0] = 0
+        ya_train[1] = 1
 
     _regressor = GradientBoostingRegressor(n_estimators=80, max_depth=4, random_state=42)
 
@@ -338,11 +350,15 @@ def train_and_save_models() -> None:
 
     _classifier = GradientBoostingClassifier(n_estimators=80, max_depth=4, random_state=42)
 
-    _classifier.fit(X_train, ya_train)
+    try:
+        _classifier.fit(X_train, ya_train)
+    except ValueError:
+        _classifier = None
 
     joblib.dump(_regressor, regressor_path)
 
-    joblib.dump(_classifier, regressor_path)
+    if _classifier is not None:
+        joblib.dump(_classifier, classifier_path)
 
 
 

@@ -40,7 +40,10 @@ public class LoanApplication {
     private BigDecimal recommendedAmount;
     private Double estimatedApr;
     private String aiSummary;
+    private String aiRecommendation;
     private String rejectionReason;
+    private Long assignedOfficerId;
+    private String officerOverrideReason;
     private LocalDate submittedDate;
     private LocalDate approvalDate;
     @Column(nullable = false, updatable = false)
@@ -100,8 +103,14 @@ public class LoanApplication {
     public void setEstimatedApr(Double estimatedApr) { this.estimatedApr = estimatedApr; }
     public String getAiSummary() { return aiSummary; }
     public void setAiSummary(String aiSummary) { this.aiSummary = aiSummary; }
+    public String getAiRecommendation() { return aiRecommendation; }
+    public void setAiRecommendation(String aiRecommendation) { this.aiRecommendation = aiRecommendation; }
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+    public Long getAssignedOfficerId() { return assignedOfficerId; }
+    public void setAssignedOfficerId(Long assignedOfficerId) { this.assignedOfficerId = assignedOfficerId; }
+    public String getOfficerOverrideReason() { return officerOverrideReason; }
+    public void setOfficerOverrideReason(String officerOverrideReason) { this.officerOverrideReason = officerOverrideReason; }
     public LocalDate getSubmittedDate() { return submittedDate; }
     public void setSubmittedDate(LocalDate submittedDate) { this.submittedDate = submittedDate; }
     public LocalDate getApprovalDate() { return approvalDate; }

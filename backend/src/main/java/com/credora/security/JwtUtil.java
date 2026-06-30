@@ -25,11 +25,20 @@ public class JwtUtil {
     }
 
     public String generateToken(String subject, String role, Long entityId) {
+        return generateToken(subject, role, entityId, null);
+    }
+
+    public String generateToken(String subject, String role, Long entityId, String subRole) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
-        return Jwts.builder()
+        var claimsBuilder = Jwts.builder()
                 .subject(subject)
-                .claims(Map.of("role", role, "entityId", entityId))
+                .claim("role", role)
+                .claim("entityId", entityId);
+        if (subRole != null) {
+            claimsBuilder.claim("institutionRole", subRole);
+        }
+        return claimsBuilder
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
