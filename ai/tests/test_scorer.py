@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.scorer import predict_credit, LOAN_TYPE_CONFIG
+from app.scorer import predict_credit, LOAN_TYPE_CONFIG, MODEL_VERSION
 
 
 @pytest.mark.parametrize("loan_type", list(LOAN_TYPE_CONFIG.keys()))
@@ -147,3 +147,23 @@ def test_thin_file_mobile_money_boost():
     )
     assert with_mobile["credit_score"] > without_mobile["credit_score"]
     assert with_mobile["approval_probability"] > without_mobile["approval_probability"]
+
+
+def test_model_version_v2():
+    assert MODEL_VERSION == "2.0"
+
+
+def test_summary_uses_kes():
+    result = predict_credit(
+        monthly_income=50000,
+        employment_status="full_time",
+        loan_amount=250000,
+        loan_term_months=36,
+        existing_credit_score=680,
+        mobile_money_avg=30000,
+        utility_payment_score=75,
+        loan_type="personal",
+    )
+    assert "KES" in result["summary"]
+    assert "$" not in result["summary"]
+    assert result["amount_options"][0]["name"].startswith("KES")

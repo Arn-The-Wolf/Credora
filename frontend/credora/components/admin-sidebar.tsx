@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, CreditCard, FileText, BarChart2, LogOut, Banknote } from "lucide-react"
+import { LayoutDashboard, Users, CreditCard, FileText, BarChart2, LogOut, Banknote, ScrollText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { clearAuth, getStoredAuth } from "@/lib/api"
 
@@ -21,6 +21,7 @@ export default function AdminSidebar() {
     { name: "Customers", path: "/admin/customers", icon: Users },
     { name: "Reports", path: "/admin/reports", icon: BarChart2 },
     { name: "Documents", path: "/admin/documents", icon: FileText },
+    { name: "Audit Log", path: "/admin/audit", icon: ScrollText },
   ]
 
   const logout = () => {

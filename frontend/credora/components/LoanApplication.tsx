@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -35,6 +35,8 @@ import {
   COMMON_APPLICANT_FIELDS,
 } from "@/lib/loan-types"
 import { formatKES } from "@/lib/format"
+import { validateSectorStep } from "@/lib/loan-validation"
+import { useSearchParams } from "next/navigation"
 
 const formSchema = z.object({
   loanType: z.string().min(1, "Select a loan type"),
@@ -73,6 +75,8 @@ const stepVariants = {
 const STEPS = ["Loan Type", "Details", "Personal", "Financial", "Documents", "Review"]
 
 export default function LoanApplication() {
+  const searchParams = useSearchParams()
+  const initialType = searchParams.get("type")
   const [step, setStep] = useState(0)
   const [showAIInsights, setShowAIInsights] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -101,6 +105,12 @@ export default function LoanApplication() {
       sectorDetails: {},
     },
   })
+
+  useEffect(() => {
+    if (initialType && LOAN_TYPES.some((t) => t.id === initialType)) {
+      form.setValue("loanType", initialType)
+    }
+  }, [initialType, form])
 
   const selectedLoanType = form.watch("loanType")
   const loanConfig = getLoanTypeConfig(selectedLoanType)
@@ -144,6 +154,12 @@ export default function LoanApplication() {
           return false
         }
         if (loanConfig) {
+          const sector = form.getValues("sectorDetails") || {}
+          const sectorErr = validateSectorStep(form.getValues("loanType"), form.getValues("amount"), sector)
+          if (sectorErr) {
+            form.setError("amount", { message: sectorErr })
+            return false
+          }
           for (const field of loanConfig.sectorFields.filter((f) => f.required)) {
             const val = form.getValues(`sectorDetails.${field.name}` as keyof FormValues)
             if (!val) {
@@ -646,6 +662,19 @@ export default function LoanApplication() {
                                   <span className="font-medium capitalize">{value}</span>
                                 </div>
                               ))}
+                              {loanConfig?.sectorFields.map((field) => {
+                                const sector = form.getValues("sectorDetails") ?? {}
+                                const val = sector[field.name]
+                                if (!val) return null
+                                return (
+                                  <div key={field.name} className="flex justify-between text-sm border-b pb-2">
+                                    <span className="text-gray-500">{field.label}</span>
+                                    <span className="font-medium text-right max-w-[60%]">
+                                      {field.type === "number" ? formatKES(val) : String(val)}
+                                    </span>
+                                  </div>
+                                )
+                              })}
                             </div>
                             {submitError && (
                               <motion.p

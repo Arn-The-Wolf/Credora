@@ -18,7 +18,7 @@ MODEL_DIR = Path(__file__).parent / "models"
 
 MODEL_DIR.mkdir(exist_ok=True)
 
-MODEL_VERSION = "1.2"
+MODEL_VERSION = "2.0"
 
 
 
@@ -172,6 +172,20 @@ def _sector_adjustment(loan_type: str, sector: dict[str, Any] | None) -> tuple[f
 
             prob_delta += 0.04
 
+        ct = sector.get("collateralType", "none")
+
+        if ct and str(ct).lower() not in ("none", ""):
+
+            cv = _parse_float(sector.get("collateralValue"))
+
+            if cv > 0:
+
+                score_delta += 20
+
+                prob_delta += 0.06
+
+            extra.append({"name": "Business Collateral", "value": min(100, int(cv / 5000))})
+
         extra.append({"name": "Business Stability", "value": min(100, int(years * 20 + employees * 5))})
 
 
@@ -250,6 +264,14 @@ def _sector_adjustment(loan_type: str, sector: dict[str, Any] | None) -> tuple[f
 
             prob_delta += 0.05
 
+        if sector.get("cosignerName"):
+
+            score_delta += 25
+
+            prob_delta += 0.08
+
+            extra.append({"name": "Cosigner Strength", "value": 85})
+
         tuition = _parse_float(sector.get("tuitionCost"))
 
         if tuition > 0:
@@ -272,6 +294,52 @@ def _sector_adjustment(loan_type: str, sector: dict[str, Any] | None) -> tuple[f
 
 
 
+
+
+def _format_kes(amount: float) -> str:
+    if amount >= 1_000_000:
+        return f"KES {amount / 1_000_000:.1f}M"
+    return f"KES {int(amount):,}"
+
+
+def _sector_feature_vector(loan_type: str, sector: dict[str, Any] | None, loan_amount: float = 0.0) -> list[float]:
+    """Normalized sector/collateral features for ML matrix (v2.0)."""
+    sector = sector or {}
+    lt = (loan_type or "personal").lower()
+    ltv = 0.0
+    vehicle_age = 0.0
+    revenue_ratio = 0.0
+    business_years = 0.0
+    cosigner = 0.0
+    collateral_secured = 0.0
+
+    if lt == "mortgage":
+        pv = _parse_float(sector.get("propertyValue"))
+        dp = _parse_float(sector.get("downPayment"))
+        amt = _parse_float(sector.get("loanAmount"), loan_amount)
+        if pv > 0:
+            ltv = min(1.0, amt / pv if amt > 0 else max(0.0, 1.0 - dp / pv))
+    elif lt == "auto":
+        year = int(_parse_float(sector.get("vehicleYear"), 2020))
+        vehicle_age = min(1.0, max(0, 2026 - year) / 15.0)
+        vp = _parse_float(sector.get("vehiclePrice"))
+        amt = _parse_float(sector.get("loanAmount"), loan_amount)
+        if vp > 0:
+            ltv = min(1.0, amt / vp)
+    elif lt == "business":
+        rev = _parse_float(sector.get("annualRevenue"))
+        amt = _parse_float(sector.get("loanAmount"), loan_amount)
+        if rev > 0:
+            revenue_ratio = min(1.0, amt / rev)
+        business_years = min(1.0, _parse_float(sector.get("yearsInOperation")) / 10.0)
+        ct = sector.get("collateralType", "none")
+        if ct and str(ct).lower() != "none":
+            collateral_secured = 1.0
+    elif lt == "education":
+        if sector.get("cosignerName"):
+            cosigner = 1.0
+
+    return [ltv, vehicle_age, revenue_ratio, business_years, cosigner, collateral_secured]
 
 
 def _encode_loan_type(loan_type: str) -> float:
@@ -301,19 +369,29 @@ def _generate_training_data(n: int = 5000):
     type_keys = list(LOAN_TYPE_ENCODE.keys())
     loan_type_enc = np.array([LOAN_TYPE_ENCODE[rng.choice(type_keys)] for _ in range(n)])
 
+    ltv_feat = rng.uniform(0.3, 0.95, n)
+    vehicle_age_feat = rng.uniform(0, 0.8, n)
+    revenue_ratio_feat = rng.uniform(0.05, 0.5, n)
+    business_years_feat = rng.uniform(0, 1, n)
+    cosigner_feat = rng.integers(0, 2, n).astype(float)
+    collateral_feat = rng.integers(0, 2, n).astype(float)
+
     debt_to_income = loan_amount / (income * 12 + 1)
 
     features = np.column_stack([
         income, mobile_money, utility_score, debt_to_income, term, existing_score, emp_encoded, loan_type_enc,
+        ltv_feat, vehicle_age_feat, revenue_ratio_feat, business_years_feat, cosigner_feat, collateral_feat,
     ])
 
     alt_data_boost = (mobile_money / (income + 1)) * 30 + utility_score * 0.3
 
     thin_file_boost = np.where(existing_score < 500, alt_data_boost * 0.5, 0)
 
+    sector_boost = (1 - ltv_feat) * 40 + business_years_feat * 25 + cosigner_feat * 20 + collateral_feat * 15
+
     credit_scores = np.clip(
 
-        existing_score * 0.4 + alt_data_boost + thin_file_boost + income / 100 - debt_to_income * 80 + emp_encoded * 50 - loan_type_enc * 40,
+        existing_score * 0.4 + alt_data_boost + thin_file_boost + sector_boost + income / 100 - debt_to_income * 80 + emp_encoded * 50 - loan_type_enc * 40,
 
         300, 850,
 
@@ -472,7 +550,13 @@ def predict_credit(
 
     if _ml_available and _regressor is not None and _classifier is not None:
 
-        features = np.array([[income, mobile, utility, dti, loan_term_months, existing, emp, _encode_loan_type(loan_type)]])
+        sector_input = {**(sector_details or {}), "loanAmount": str(loan_amount)}
+        sector_vec = _sector_feature_vector(loan_type, sector_input, loan_amount)
+
+        features = np.array([[
+            income, mobile, utility, dti, loan_term_months, existing, emp, _encode_loan_type(loan_type),
+            *sector_vec,
+        ]])
 
         credit_score = int(np.clip(_regressor.predict(features)[0], 300, 850))
 
@@ -534,13 +618,13 @@ def predict_credit(
 
 
 
-    amounts = [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 100000]
+    amounts = [5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2000000]
 
     amount_options = [
 
-        {"name": f"${a // 1000}k", "value": min(100, int(approve_prob * 100 * (1 - abs(a - recommended) / (recommended + 1))))}
+        {"name": _format_kes(a), "value": min(100, int(approve_prob * 100 * (1 - abs(a - recommended) / (recommended + 1))))}
 
-        for a in amounts if a <= loan_amount * 2 or a <= 50000
+        for a in amounts if a <= loan_amount * 2 or a <= 500000
 
     ]
 
@@ -550,7 +634,7 @@ def predict_credit(
 
     summary = (
 
-        f"{type_label} loan assessment using salary (${income:,.0f}/mo), mobile money (${mobile:,.0f}/mo avg), "
+        f"{type_label} loan assessment using salary ({_format_kes(income)}/mo), mobile money ({_format_kes(mobile)}/mo avg), "
 
         f"utility score ({utility}/100). Credit score: {credit_score}. Approval probability: {approve_prob:.0%}. "
 

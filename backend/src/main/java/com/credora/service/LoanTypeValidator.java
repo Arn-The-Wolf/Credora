@@ -17,11 +17,14 @@ public class LoanTypeValidator {
             "personal", new LoanTypeRules(1000, 50000, Set.of(6, 12, 24, 36, 48, 60), 9.5,
                     Set.of("existingDebt", "loanUseDescription")),
             "business", new LoanTypeRules(5000, 500000, Set.of(12, 24, 36, 48, 60, 84), 11.0,
-                    Set.of("businessName", "businessType", "yearsInOperation", "annualRevenue", "numberOfEmployees")),
+                    Set.of("businessName", "businessType", "yearsInOperation", "annualRevenue", "numberOfEmployees",
+                            "businessRegistration")),
             "mortgage", new LoanTypeRules(50000, 2000000, Set.of(120, 180, 240, 360), 6.5,
-                    Set.of("propertyValue", "downPayment", "propertyType", "occupancyType", "propertyAddress")),
+                    Set.of("propertyValue", "downPayment", "propertyType", "occupancyType", "propertyAddress",
+                            "titleNumber", "parcelId")),
             "auto", new LoanTypeRules(3000, 150000, Set.of(12, 24, 36, 48, 60, 72, 84), 7.5,
-                    Set.of("vehicleMake", "vehicleModel", "vehicleYear", "vehiclePrice", "downPayment", "vehicleCondition")),
+                    Set.of("vehicleMake", "vehicleModel", "vehicleYear", "vehiclePrice", "downPayment",
+                            "vehicleCondition", "vin", "registrationNumber")),
             "education", new LoanTypeRules(2000, 100000, Set.of(12, 24, 36, 48, 60, 120), 5.5,
                     Set.of("institutionName", "programType", "enrollmentStatus", "expectedGraduationYear", "tuitionCost"))
     );
@@ -34,7 +37,7 @@ public class LoanTypeValidator {
         if (amount.compareTo(BigDecimal.valueOf(rules.minAmount)) < 0
                 || amount.compareTo(BigDecimal.valueOf(rules.maxAmount)) > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    String.format("Amount must be between $%,d and $%,d for %s loans",
+                    String.format("Amount must be between KES %,d and KES %,d for %s loans",
                             rules.minAmount, rules.maxAmount, loanType));
         }
         if (!rules.allowedTerms.contains(termMonths)) {
@@ -76,6 +79,10 @@ public class LoanTypeValidator {
             case "auto" -> {
                 BigDecimal vehiclePrice = parseDecimal(details.get("vehiclePrice"));
                 BigDecimal downPayment = parseDecimal(details.get("downPayment"));
+                String vin = details.get("vin");
+                if (vin != null && vin.length() > 0 && vin.length() != 17) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "VIN must be 17 characters");
+                }
                 if (vehiclePrice.compareTo(BigDecimal.ZERO) > 0 && amount.compareTo(vehiclePrice) > 0) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "Auto loan amount cannot exceed vehicle price");
@@ -92,6 +99,17 @@ public class LoanTypeValidator {
                         && amount.compareTo(annualRevenue.multiply(BigDecimal.valueOf(0.5))) > 0) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "Business loan cannot exceed 50% of annual revenue");
+                }
+                String collateralType = details.get("collateralType");
+                if (collateralType != null && !collateralType.isBlank() && !"none".equalsIgnoreCase(collateralType)) {
+                    if (!details.containsKey("collateralValue") || details.get("collateralValue").isBlank()) {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Collateral value is required when business loan is secured");
+                    }
+                    if (!details.containsKey("collateralDescription") || details.get("collateralDescription").isBlank()) {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Collateral description is required when business loan is secured");
+                    }
                 }
             }
             case "education" -> {
@@ -124,6 +142,7 @@ public class LoanTypeValidator {
             case "auto" -> {
                 metrics.put("vehicle_year", parseInt(details.get("vehicleYear"), 2020));
                 metrics.put("vehicle_condition", details.get("vehicleCondition"));
+                metrics.put("vin", details.get("vin"));
                 BigDecimal vp = parseDecimal(details.get("vehiclePrice"));
                 if (vp.compareTo(BigDecimal.ZERO) > 0) {
                     metrics.put("loan_to_value", parseDecimal(details.getOrDefault("loanAmount", "0"))
@@ -134,11 +153,17 @@ public class LoanTypeValidator {
                 metrics.put("years_in_operation", parseInt(details.get("yearsInOperation"), 0));
                 metrics.put("annual_revenue", parseDecimal(details.get("annualRevenue")).doubleValue());
                 metrics.put("employees", parseInt(details.get("numberOfEmployees"), 1));
+                String ct = details.get("collateralType");
+                metrics.put("collateral_secured", ct != null && !ct.isBlank() && !"none".equalsIgnoreCase(ct));
+                if (Boolean.TRUE.equals(metrics.get("collateral_secured"))) {
+                    metrics.put("collateral_value", parseDecimal(details.get("collateralValue")).doubleValue());
+                }
             }
             case "education" -> {
                 metrics.put("program_type", details.get("programType"));
                 metrics.put("enrollment_status", details.get("enrollmentStatus"));
                 metrics.put("tuition_cost", parseDecimal(details.get("tuitionCost")).doubleValue());
+                metrics.put("has_cosigner", details.get("cosignerName") != null && !details.get("cosignerName").isBlank());
             }
             case "personal" -> {
                 metrics.put("existing_debt", parseDecimal(details.get("existingDebt")).doubleValue());

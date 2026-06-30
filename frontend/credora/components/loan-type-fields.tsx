@@ -3,7 +3,6 @@
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DollarSign } from "lucide-react"
 import type { Control, FieldValues, Path } from "react-hook-form"
 import { getLoanTypeConfig, type LoanFieldConfig } from "@/lib/loan-types"
 
@@ -48,9 +47,9 @@ function SectorField<T extends FieldValues>({
             <FormControl>
               {field.type === "number" ? (
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500">KES</span>
                   <Input
-                    className="pl-10"
+                    className="pl-12"
                     type="number"
                     placeholder={field.placeholder}
                     {...formField}

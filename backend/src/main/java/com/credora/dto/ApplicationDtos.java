@@ -108,6 +108,9 @@ public class ApplicationDtos {
         private ScoringInsights scoring;
         private Long loanId;
         private String aiRecommendation;
+        private Long assignedOfficerId;
+        private String collateralSummary;
+        private List<CollateralAssetResponse> collaterals;
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
         public String getReferenceId() { return referenceId; }
@@ -156,6 +159,39 @@ public class ApplicationDtos {
         public void setLoanId(Long loanId) { this.loanId = loanId; }
         public String getAiRecommendation() { return aiRecommendation; }
         public void setAiRecommendation(String aiRecommendation) { this.aiRecommendation = aiRecommendation; }
+        public Long getAssignedOfficerId() { return assignedOfficerId; }
+        public void setAssignedOfficerId(Long assignedOfficerId) { this.assignedOfficerId = assignedOfficerId; }
+        public String getCollateralSummary() { return collateralSummary; }
+        public void setCollateralSummary(String collateralSummary) { this.collateralSummary = collateralSummary; }
+        public List<CollateralAssetResponse> getCollaterals() { return collaterals; }
+        public void setCollaterals(List<CollateralAssetResponse> collaterals) { this.collaterals = collaterals; }
+    }
+
+    public static class CollateralAssetResponse {
+        private Long id;
+        private String collateralType;
+        private String description;
+        private BigDecimal estimatedValue;
+        private String identifier;
+        private String lienStatus;
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public String getCollateralType() { return collateralType; }
+        public void setCollateralType(String collateralType) { this.collateralType = collateralType; }
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        public BigDecimal getEstimatedValue() { return estimatedValue; }
+        public void setEstimatedValue(BigDecimal estimatedValue) { this.estimatedValue = estimatedValue; }
+        public String getIdentifier() { return identifier; }
+        public void setIdentifier(String identifier) { this.identifier = identifier; }
+        public String getLienStatus() { return lienStatus; }
+        public void setLienStatus(String lienStatus) { this.lienStatus = lienStatus; }
+    }
+
+    public static class AdminApplicationDetail extends ApplicationResponse {
+        private List<ReportDtos.ApplicationNoteResponse> notes;
+        public List<ReportDtos.ApplicationNoteResponse> getNotes() { return notes; }
+        public void setNotes(List<ReportDtos.ApplicationNoteResponse> notes) { this.notes = notes; }
     }
 
     public static class AdminLoanResponse {

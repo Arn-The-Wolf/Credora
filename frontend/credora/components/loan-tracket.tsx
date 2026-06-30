@@ -11,6 +11,7 @@ import { Search, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight, Bell, F
 import Layout from "@/components/layout"
 import { api, ApplicationResponse } from "@/lib/api"
 import { formatKES } from "@/lib/format"
+import { formatCollateralSummary } from "@/lib/collateral"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 
@@ -32,6 +33,7 @@ export default function LoanTracker() {
   const statusProgress: Record<string, number> = {
     pending: 30,
     processing: 60,
+    more_info_required: 45,
     approved: 100,
     rejected: 100,
   }
@@ -57,6 +59,7 @@ export default function LoanTracker() {
     processing: { color: "bg-blue-100 text-blue-800", icon: <Clock className="h-4 w-4 text-blue-500 mr-1" /> },
     pending: { color: "bg-yellow-100 text-yellow-800", icon: <AlertCircle className="h-4 w-4 text-yellow-500 mr-1" /> },
     rejected: { color: "bg-red-100 text-red-800", icon: <XCircle className="h-4 w-4 text-red-500 mr-1" /> },
+    more_info_required: { color: "bg-orange-100 text-orange-800", icon: <AlertCircle className="h-4 w-4 text-orange-500 mr-1" /> },
   }
 
   return (
@@ -155,13 +158,18 @@ export default function LoanTracker() {
                         >
                           <div className="flex items-center">
                             {statusConfig[application.status as keyof typeof statusConfig].icon}
-                            {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                            {application.status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                           </div>
                         </Badge>
                       </CardTitle>
                       <CardDescription>
-                        Application ID: {application.referenceId} | {formatKES(application.amount)}
+                        Application ID: {application.referenceId} | {formatKES(application.amount)} · {application.loanType}
                       </CardDescription>
+                      {(application.collateralSummary || application.sectorDetails) && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {application.collateralSummary || formatCollateralSummary(application.loanType, application.sectorDetails)}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-gray-500">
@@ -264,6 +272,23 @@ export default function LoanTracker() {
                               <span className="text-sm font-medium">Estimated Time to Decision: </span>
                               <span className="text-sm text-gray-600">3-5 business days</span>
                             </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {application.status === "more_info_required" && (
+                      <div className="mt-4 p-3 bg-orange-50 rounded-lg">
+                        <div className="flex items-start">
+                          <AlertCircle className="h-5 w-5 text-orange-500 mr-2 mt-0.5" />
+                          <div>
+                            <h4 className="font-medium text-sm">Additional information required</h4>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Our team needs more documents or details before we can complete your review.
+                            </p>
+                            <Button asChild size="sm" variant="outline" className="mt-2">
+                              <Link href="/dashboard/apply-for-loan">Provide more information</Link>
+                            </Button>
                           </div>
                         </div>
                       </div>

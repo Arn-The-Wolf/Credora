@@ -44,6 +44,8 @@ public class ApplicationService {
     private final AuditService auditService;
     private final ConsentService consentService;
     private final ApplicationNoteRepository noteRepository;
+    private final CollateralService collateralService;
+    private final DocumentRequirementValidator documentRequirementValidator;
 
     public ApplicationService(LoanApplicationRepository applicationRepository, LoanRepository loanRepository,
                               UserRepository userRepository, AiScoringService aiScoringService,
@@ -55,7 +57,9 @@ public class ApplicationService {
                               EmailService emailService,
                               AuditService auditService,
                               ConsentService consentService,
-                              ApplicationNoteRepository noteRepository) {
+                              ApplicationNoteRepository noteRepository,
+                              CollateralService collateralService,
+                              DocumentRequirementValidator documentRequirementValidator) {
         this.applicationRepository = applicationRepository;
         this.loanRepository = loanRepository;
         this.userRepository = userRepository;
@@ -69,6 +73,8 @@ public class ApplicationService {
         this.auditService = auditService;
         this.consentService = consentService;
         this.noteRepository = noteRepository;
+        this.collateralService = collateralService;
+        this.documentRequirementValidator = documentRequirementValidator;
     }
 
     @Transactional
@@ -83,6 +89,11 @@ public class ApplicationService {
         sectorDetails.put("loanAmount", amount.toPlainString());
 
         loanTypeValidator.validate(req.getLoanType(), amount, term, sectorDetails);
+        documentRequirementValidator.validate(req.getLoanType(), req.getDocuments());
+
+        // Enrich sector details with computed metrics for AI scoring
+        Map<String, Object> metrics = loanTypeValidator.buildSectorMetrics(req.getLoanType(), sectorDetails);
+        metrics.forEach((k, v) -> sectorDetails.put(k, String.valueOf(v)));
 
         updateUserProfileFromApplication(user, req);
         user = userRepository.save(user);
@@ -151,6 +162,7 @@ public class ApplicationService {
         }
 
         app = applicationRepository.save(app);
+        collateralService.persistFromSectorDetails(app, sectorDetails);
 
         if (req.getDocuments() != null) {
             for (ReportDtos.DocumentUploadRequest doc : req.getDocuments()) {
@@ -183,6 +195,68 @@ public class ApplicationService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
         }
         return toResponse(app);
+    }
+
+    public ApplicationDtos.AdminApplicationDetail getAdminApplicationDetail(Long appId) {
+        LoanApplication app = applicationRepository.findById(appId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+        ApplicationDtos.AdminApplicationDetail detail = new ApplicationDtos.AdminApplicationDetail();
+        ApplicationDtos.ApplicationResponse base = toResponse(app);
+        copyResponse(base, detail);
+        detail.setNotes(noteRepository.findByApplicationOrderByCreatedAtDesc(app).stream().map(n -> {
+            ReportDtos.ApplicationNoteResponse r = new ReportDtos.ApplicationNoteResponse();
+            r.setId(n.getId());
+            r.setOfficerEmail(n.getOfficerEmail());
+            r.setNoteType(n.getNoteType());
+            r.setContent(n.getContent());
+            r.setCreatedAt(n.getCreatedAt().toString());
+            return r;
+        }).collect(Collectors.toList()));
+        return detail;
+    }
+
+    public List<ReportDtos.ApplicationNoteResponse> getApplicationNotes(Long appId) {
+        LoanApplication app = applicationRepository.findById(appId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+        return noteRepository.findByApplicationOrderByCreatedAtDesc(app).stream().map(n -> {
+            ReportDtos.ApplicationNoteResponse r = new ReportDtos.ApplicationNoteResponse();
+            r.setId(n.getId());
+            r.setOfficerEmail(n.getOfficerEmail());
+            r.setNoteType(n.getNoteType());
+            r.setContent(n.getContent());
+            r.setCreatedAt(n.getCreatedAt().toString());
+            return r;
+        }).collect(Collectors.toList());
+    }
+
+    private void copyResponse(ApplicationDtos.ApplicationResponse from, ApplicationDtos.ApplicationResponse to) {
+        to.setId(from.getId());
+        to.setReferenceId(from.getReferenceId());
+        to.setLoanType(from.getLoanType());
+        to.setPurpose(from.getPurpose());
+        to.setAmount(from.getAmount());
+        to.setTermMonths(from.getTermMonths());
+        to.setStatus(from.getStatus());
+        to.setAiCreditScore(from.getAiCreditScore());
+        to.setApprovalProbability(from.getApprovalProbability());
+        to.setRecommendedAmount(from.getRecommendedAmount());
+        to.setEstimatedApr(from.getEstimatedApr());
+        to.setAiSummary(from.getAiSummary());
+        to.setRejectionReason(from.getRejectionReason());
+        to.setSubmittedDate(from.getSubmittedDate());
+        to.setApprovalDate(from.getApprovalDate());
+        to.setCustomerName(from.getCustomerName());
+        to.setCustomerEmail(from.getCustomerEmail());
+        to.setMonthlyIncome(from.getMonthlyIncome());
+        to.setExistingCreditScore(from.getExistingCreditScore());
+        to.setDebtToIncome(from.getDebtToIncome());
+        to.setSectorDetails(from.getSectorDetails());
+        to.setScoring(from.getScoring());
+        to.setLoanId(from.getLoanId());
+        to.setAiRecommendation(from.getAiRecommendation());
+        to.setAssignedOfficerId(from.getAssignedOfficerId());
+        to.setCollateralSummary(from.getCollateralSummary());
+        to.setCollaterals(from.getCollaterals());
     }
 
     public List<ApplicationDtos.ApplicationResponse> getAllApplications(String statusFilter) {
@@ -461,6 +535,19 @@ public class ApplicationService {
             } catch (JsonProcessingException ignored) { }
         }
         r.setAiRecommendation(app.getAiRecommendation());
+        r.setAssignedOfficerId(app.getAssignedOfficerId());
+        Map<String, String> sectorMap = r.getSectorDetails();
+        r.setCollateralSummary(collateralService.buildSummary(app.getLoanType(), sectorMap));
+        r.setCollaterals(collateralService.getForApplication(app).stream().map(c -> {
+            ApplicationDtos.CollateralAssetResponse cr = new ApplicationDtos.CollateralAssetResponse();
+            cr.setId(c.getId());
+            cr.setCollateralType(c.getCollateralType());
+            cr.setDescription(c.getDescription());
+            cr.setEstimatedValue(c.getEstimatedValue());
+            cr.setIdentifier(c.getIdentifier());
+            cr.setLienStatus(c.getLienStatus());
+            return cr;
+        }).collect(Collectors.toList()));
         loanRepository.findByApplication_Id(app.getId()).ifPresent(loan -> r.setLoanId(loan.getId()));
         return r;
     }

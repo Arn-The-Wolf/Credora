@@ -29,6 +29,7 @@ import { TableSkeleton } from "@/components/page-skeletons"
 import { api, ApplicationResponse } from "@/lib/api"
 import { formatKES } from "@/lib/format"
 import Link from "next/link"
+import AdminApplicationDetail from "@/components/admin-application-detail"
 
 function withinDateRange(submittedDate: string | undefined, range: string): boolean {
   if (range === "all" || !submittedDate) return true
@@ -59,6 +60,8 @@ export default function AdminApplications() {
   const [applications, setApplications] = useState<ApplicationResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [detailId, setDetailId] = useState<number | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
 
   const loadApplications = () => {
     setLoading(true)
@@ -106,6 +109,7 @@ export default function AdminApplications() {
     pending: { color: "bg-yellow-100 text-yellow-800", icon: <Clock className="h-4 w-4 text-yellow-500 mr-1" /> },
     processing: { color: "bg-blue-100 text-blue-800", icon: <Clock className="h-4 w-4 text-blue-500 mr-1" /> },
     rejected: { color: "bg-red-100 text-red-800", icon: <XCircle className="h-4 w-4 text-red-500 mr-1" /> },
+    more_info_required: { color: "bg-orange-100 text-orange-800", icon: <AlertCircle className="h-4 w-4 text-orange-500 mr-1" /> },
   }
   const statusStyle = (s: string) => statusConfig[s] ?? { color: "bg-gray-100 text-gray-800", icon: <AlertCircle className="h-4 w-4 mr-1" /> }
 
@@ -194,6 +198,7 @@ export default function AdminApplications() {
             <TabsTrigger value="all">All Applications</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="processing">Processing</TabsTrigger>
+            <TabsTrigger value="more_info_required">More Info</TabsTrigger>
             <TabsTrigger value="approved">Approved</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
@@ -339,17 +344,23 @@ export default function AdminApplications() {
                                 </Link>
                               </Button>
                             )}
-                            {(application.status === "pending" || application.status === "processing") && (
+                            {(application.status === "pending" || application.status === "processing" || application.status === "more_info_required") && (
                               <>
                                 <Button variant="ghost" size="icon" className="text-green-500" onClick={() => updateStatus(application.id, "approved")}>
                                   <CheckCircle className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="text-orange-500" onClick={() => updateStatus(application.id, "more_info_required")}>
+                                  <AlertCircle className="h-4 w-4" />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="text-red-500" onClick={() => updateStatus(application.id, "rejected", "Rejected by institution reviewer")}>
                                   <XCircle className="h-4 w-4" />
                                 </Button>
                               </>
                             )}
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" onClick={() => { setDetailId(application.id); setDetailOpen(true) }}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => { setDetailId(application.id); setDetailOpen(true) }}>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </div>
@@ -428,6 +439,12 @@ export default function AdminApplications() {
         </Card>
         )}
       </div>
+      <AdminApplicationDetail
+        applicationId={detailId}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        onUpdated={loadApplications}
+      />
     </AdminLayout>
   )
 }

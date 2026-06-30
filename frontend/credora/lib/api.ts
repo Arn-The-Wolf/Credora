@@ -118,6 +118,43 @@ export interface ApplicationResponse {
   scoring?: ScoringInsights;
   aiRecommendation?: string;
   loanId?: number;
+  assignedOfficerId?: number;
+  collateralSummary?: string;
+  collaterals?: CollateralAsset[];
+}
+
+export interface CollateralAsset {
+  id: number;
+  collateralType: string;
+  description?: string;
+  estimatedValue?: number;
+  identifier?: string;
+  lienStatus?: string;
+}
+
+export interface AdminApplicationDetail extends ApplicationResponse {
+  notes?: ApplicationNote[];
+}
+
+export interface ApplicationNote {
+  id: number;
+  officerEmail?: string;
+  noteType?: string;
+  content: string;
+  createdAt?: string;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  actorType?: string;
+  actorId?: number;
+  actorEmail?: string;
+  action: string;
+  resourceType?: string;
+  resourceId?: number;
+  ipAddress?: string;
+  details?: string;
+  createdAt?: string;
 }
 
 export interface LoanResponse {

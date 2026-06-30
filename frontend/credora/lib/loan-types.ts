@@ -189,6 +189,32 @@ export const LOAN_TYPES: LoanTypeConfig[] = [
         label: "Business Registration Number",
         type: "text",
         placeholder: "Tax ID / registration number",
+        required: true,
+      },
+      {
+        name: "collateralType",
+        label: "Collateral Type",
+        type: "select",
+        required: false,
+        options: [
+          { value: "none", label: "None (unsecured)" },
+          { value: "equipment", label: "Equipment" },
+          { value: "inventory", label: "Inventory" },
+          { value: "real_estate", label: "Commercial property" },
+        ],
+      },
+      {
+        name: "collateralDescription",
+        label: "Collateral Description",
+        type: "text",
+        placeholder: "Asset securing the loan",
+        required: false,
+      },
+      {
+        name: "collateralValue",
+        label: "Estimated Collateral Value (KES)",
+        type: "number",
+        placeholder: "Appraised value",
         required: false,
       },
     ],
@@ -202,7 +228,7 @@ export const LOAN_TYPES: LoanTypeConfig[] = [
     maxAmount: 2000000,
     terms: [120, 180, 240, 360],
     baseApr: 6.5,
-    purposes: ["home_improvement", "other"],
+    purposes: ["home_improvement", "other", "debt_consolidation"],
     requiredDocuments: [
       { type: "id_document", label: "Government ID / Passport" },
       { type: "property_deed", label: "Property Title / Deed" },
@@ -251,6 +277,20 @@ export const LOAN_TYPES: LoanTypeConfig[] = [
         label: "Property Address",
         type: "text",
         placeholder: "Street address of property",
+        required: true,
+      },
+      {
+        name: "titleNumber",
+        label: "Title / Deed Number",
+        type: "text",
+        placeholder: "Land title or deed reference",
+        required: true,
+      },
+      {
+        name: "parcelId",
+        label: "Parcel / Plot ID",
+        type: "text",
+        placeholder: "LR number or parcel ID",
         required: true,
       },
     ],
@@ -317,6 +357,27 @@ export const LOAN_TYPES: LoanTypeConfig[] = [
           { value: "certified", label: "Certified Pre-Owned" },
         ],
       },
+      {
+        name: "vin",
+        label: "VIN (17 characters)",
+        type: "text",
+        placeholder: "Vehicle identification number",
+        required: true,
+      },
+      {
+        name: "registrationNumber",
+        label: "Registration / Plate Number",
+        type: "text",
+        placeholder: "KBA 123A",
+        required: true,
+      },
+      {
+        name: "odometer",
+        label: "Odometer (km)",
+        type: "number",
+        placeholder: "Current mileage",
+        required: false,
+      },
     ],
   },
   {
@@ -378,6 +439,40 @@ export const LOAN_TYPES: LoanTypeConfig[] = [
         placeholder: "Annual or total program cost",
         required: true,
       },
+      {
+        name: "cosignerName",
+        label: "Cosigner Full Name (optional)",
+        type: "text",
+        placeholder: "Parent or guarantor",
+        required: false,
+      },
+      {
+        name: "cosignerPhone",
+        label: "Cosigner Phone",
+        type: "text",
+        placeholder: "+254...",
+        required: false,
+      },
+      {
+        name: "cosignerIdNumber",
+        label: "Cosigner ID Number",
+        type: "text",
+        placeholder: "National ID",
+        required: false,
+      },
+      {
+        name: "cosignerRelationship",
+        label: "Relationship",
+        type: "select",
+        required: false,
+        options: [
+          { value: "parent", label: "Parent" },
+          { value: "spouse", label: "Spouse" },
+          { value: "sibling", label: "Sibling" },
+          { value: "employer", label: "Employer" },
+          { value: "other", label: "Other" },
+        ],
+      },
     ],
   },
 ]
@@ -399,9 +494,9 @@ export function mapCreditScore(value: string): string {
 }
 
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-KE", {
     style: "currency",
-    currency: "USD",
+    currency: "KES",
     maximumFractionDigits: 0,
   }).format(value)
 }

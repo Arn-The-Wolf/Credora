@@ -50,6 +50,16 @@ public class AdminController {
         return applicationService.getAllApplications(status);
     }
 
+    @GetMapping("/applications/{id}")
+    public ApplicationDtos.AdminApplicationDetail applicationDetail(@PathVariable Long id) {
+        return applicationService.getAdminApplicationDetail(id);
+    }
+
+    @GetMapping("/applications/{id}/notes")
+    public List<ReportDtos.ApplicationNoteResponse> applicationNotes(@PathVariable Long id) {
+        return applicationService.getApplicationNotes(id);
+    }
+
     @PatchMapping("/applications/{id}/status")
     public ApplicationDtos.ApplicationResponse updateStatus(
             Authentication auth,
