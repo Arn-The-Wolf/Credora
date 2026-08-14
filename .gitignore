@@ -11,3 +11,5 @@ ai/app/models/
 __pycache__/
 *.pyc
 .vscode/
+.vercel/
+frontend/credora/.vercel/
