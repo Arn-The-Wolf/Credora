@@ -6,14 +6,14 @@ import discuss from "@/public/discuss.svg";
 
 const About = () => {
   return (
-    <div className="p-6 md:p-12 text-[#4B4F5E] text-base sm:text-lg md:text-xl">
+    <div className="p-6 md:p-12 text-[#4B4F5E] text-sm sm:text-base md:text-lg">
       <button className="text-[#4B415F] border border-[#4B415F] rounded-full py-2 px-5 mb-5 text-sm sm:text-base">
         ABOUT US
       </button>
 
       <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
         <div className="w-full md:w-1/2 text-center md:text-left mt-12 md:mt-24">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold">
             25 years of expert loan and finance services.
           </h1>
           <div>

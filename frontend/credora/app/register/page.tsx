@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { User, Mail, Lock, Phone, Home, Briefcase, DollarSign, Building, Globe, FileText } from "lucide-react"
-import { api, getErrorMessage } from "@/lib/api"
+import { api, getErrorMessage, setAuth } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
 import Link from "next/link"
@@ -98,22 +98,26 @@ export default function SignUpPage() {
           setLoading(false)
           return
         }
+        const passwordCheck = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{10,}$/
+        if (!passwordCheck.test(password)) {
+          setError("Password must be 10+ characters with upper, lower, digit, and special character.")
+          setLoading(false)
+          return
+        }
+
         const response = await api.post<{ message: string }>("/auth/signup", applicantForm)
 
         if (response.status === 200 || response.status === 201) {
-          setSuccess(response.data.message || "Account created! Check your email to verify, then sign in.")
-          setApplicantForm({
-            fullName: "",
-            email: "",
-            password: "",
-            phoneNumber: "",
-            address: "",
-            employmentStatus: "",
-            monthlyIncome: "",
-            idPassportNumber: "",
-            acceptTerms: false,
-            acceptPrivacy: false,
-          })
+          try {
+            const login = await api.post("/auth/login", { email, password })
+            setAuth(login.data.token, "applicant", login.data.user, true)
+            document.cookie = `credora_token=${login.data.token}; path=/; max-age=86400; SameSite=Lax`
+            setSuccess("Account created! Redirecting to dashboard...")
+            router.push("/dashboard")
+            return
+          } catch {
+            setSuccess(response.data.message || "Account created. Please sign in.")
+          }
         }
       } else {
         const {
@@ -142,9 +146,23 @@ export default function SignUpPage() {
           return
         }
 
+        const passwordCheck = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{10,}$/
+        if (!passwordCheck.test(password)) {
+          setError("Password must be 10+ characters with upper, lower, digit, and special character.")
+          setLoading(false)
+          return
+        }
+
         const response = await api.post("/auth/signup-institution", bankForm)
 
         if (response.status === 200 || response.status === 201) {
+          if (response.data?.token) {
+            setAuth(response.data.token, "institution", response.data.institution, true)
+            document.cookie = `credora_token=${response.data.token}; path=/; max-age=86400; SameSite=Lax`
+            setSuccess("Institution account created! Redirecting...")
+            router.push("/admin")
+            return
+          }
           setSuccess("Institution account created successfully! Redirecting to login page...")
           setBankForm({
             institutionName: "",
@@ -169,7 +187,7 @@ export default function SignUpPage() {
     <div className="min-h-screen bg-gradient-to-b from-[#F0F2FF] to-[#F8F9FC] flex items-center justify-center p-6">
       <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl p-10 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-3 bg-[#061525]"></div>
-        <h1 className="text-4xl font-bold text-center mb-3 text-[#0A1124]">Create an Account</h1>
+        <h1 className="text-3xl font-bold text-center mb-2 text-[#0A1124]">Create an Account</h1>
         <p className="text-center text-gray-600 mb-8">Join our platform to access loan services</p>
 
         {/* User Type Selection */}
@@ -215,7 +233,7 @@ export default function SignUpPage() {
             type="button"
             onClick={() => signIn("google", { callbackUrl: userType === "applicant" ? "/dashboard" : "/admin" })}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 text-gray-700 py-4 rounded-xl hover:bg-gray-50 transition-colors text-lg disabled:opacity-70"
+            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 text-gray-700 py-3.5 rounded-xl hover:bg-gray-50 transition-colors text-base disabled:opacity-70"
           >
             <img src="https://www.google.com/favicon.ico" alt="Google" className="w-6 h-6" />
             Sign up with Google
@@ -240,7 +258,7 @@ export default function SignUpPage() {
                   placeholder="Full Name *"
                   value={applicantForm.fullName}
                   onChange={handleApplicantChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -251,7 +269,7 @@ export default function SignUpPage() {
                   placeholder="Email Address *"
                   value={applicantForm.email}
                   onChange={handleApplicantChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -262,7 +280,7 @@ export default function SignUpPage() {
                   placeholder="Password *"
                   value={applicantForm.password}
                   onChange={handleApplicantChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -273,7 +291,7 @@ export default function SignUpPage() {
                   placeholder="Phone Number *"
                   value={applicantForm.phoneNumber}
                   onChange={handleApplicantChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -284,7 +302,7 @@ export default function SignUpPage() {
                   placeholder="Home Address *"
                   value={applicantForm.address}
                   onChange={handleApplicantChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -295,7 +313,7 @@ export default function SignUpPage() {
                   placeholder="Employment Status *"
                   value={applicantForm.employmentStatus}
                   onChange={handleApplicantChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -306,7 +324,7 @@ export default function SignUpPage() {
                   placeholder="Monthly Income *"
                   value={applicantForm.monthlyIncome}
                   onChange={handleApplicantChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -317,11 +335,12 @@ export default function SignUpPage() {
                   placeholder="ID Number *"
                   value={applicantForm.idPassportNumber}
                   onChange={handleApplicantChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
             </div>
             <div className="space-y-2 text-sm text-gray-600 px-1">
+              <p className="text-xs text-gray-500">Use 10+ characters with upper, lower, a number, and a special character (example: Password123!).</p>
               <label className="flex items-start gap-2">
                 <input type="checkbox" checked={applicantForm.acceptTerms}
                   onChange={(e) => setApplicantForm((p) => ({ ...p, acceptTerms: e.target.checked }))} />
@@ -337,7 +356,7 @@ export default function SignUpPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#061525] text-white py-4 rounded-xl transition-all font-medium text-lg shadow-lg shadow-blue-200 disabled:opacity-70"
+                className="w-full bg-[#061525] text-white py-3.5 rounded-xl transition-all font-medium text-base shadow-lg shadow-blue-200 disabled:opacity-70"
               >
                 {loading ? "Creating Account..." : "Create Applicant Account"}
               </button>
@@ -357,7 +376,7 @@ export default function SignUpPage() {
                   placeholder="Institution Name *"
                   value={bankForm.institutionName}
                   onChange={handleBankChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -368,7 +387,7 @@ export default function SignUpPage() {
                   placeholder="Registration Number *"
                   value={bankForm.registrationLicenseNumber}
                   onChange={handleBankChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -379,7 +398,7 @@ export default function SignUpPage() {
                   placeholder="Contact Name *"
                   value={bankForm.contactPersonName}
                   onChange={handleBankChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -390,7 +409,7 @@ export default function SignUpPage() {
                   placeholder="Email Address *"
                   value={bankForm.institutionEmail}
                   onChange={handleBankChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -401,7 +420,7 @@ export default function SignUpPage() {
                   placeholder="Password *"
                   value={bankForm.password}
                   onChange={handleBankChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -412,7 +431,7 @@ export default function SignUpPage() {
                   placeholder="Phone Number *"
                   value={bankForm.phoneNumber}
                   onChange={handleBankChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -423,7 +442,7 @@ export default function SignUpPage() {
                   placeholder="Institution Address *"
                   value={bankForm.businessAddress}
                   onChange={handleBankChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
               <div className="flex items-center border-2 border-gray-200 rounded-xl px-5 py-4 focus-within:border-[#061525] focus-within:ring-2 focus-within:ring-[#061525]/20 transition-all">
@@ -434,7 +453,7 @@ export default function SignUpPage() {
                   placeholder="Website URL"
                   value={bankForm.institutionWebsite}
                   onChange={handleBankChange}
-                  className="w-full ml-3 outline-none text-[#333] text-lg"
+                  className="w-full ml-3 outline-none text-[#333] text-base"
                 />
               </div>
             </div>
@@ -442,7 +461,7 @@ export default function SignUpPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#061525] text-white py-4 rounded-xl transition-all font-medium text-lg shadow-lg shadow-blue-200 disabled:opacity-70"
+                className="w-full bg-[#061525] text-white py-3.5 rounded-xl transition-all font-medium text-base shadow-lg shadow-blue-200 disabled:opacity-70"
               >
                 {loading ? "Creating Account..." : "Create Institution Account"}
               </button>

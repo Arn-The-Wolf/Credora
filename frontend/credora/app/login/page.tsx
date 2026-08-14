@@ -74,11 +74,10 @@ export default function LoginPage() {
         
         if (response.status === 201 || response.status === 200) {
           setAuth(response.data.token, "applicant", response.data.user, rememberMe);
-          document.cookie = `credora_token=${response.data.token}; path=/; max-age=86400`;
+          document.cookie = `credora_token=${response.data.token}; path=/; max-age=86400; SameSite=Lax`;
           
           setSuccess("Login successful! Redirecting to dashboard...");
         }
-        console.log({email,password,response})
       } else {
         // Institution login
         const response = await api.post(
@@ -88,7 +87,7 @@ export default function LoginPage() {
 
         if (response.status === 201 || response.status === 200) {
           setAuth(response.data.token, "institution", response.data.institution, rememberMe);
-          document.cookie = `credora_token=${response.data.token}; path=/; max-age=86400`;
+          document.cookie = `credora_token=${response.data.token}; path=/; max-age=86400; SameSite=Lax`;
 
           setSuccess("Login successful! Redirecting to admin dashboard...");
         }
@@ -105,11 +104,11 @@ export default function LoginPage() {
       <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl p-10 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-3 bg-[#061525]"></div>
 
-        <h1 className="text-4xl font-bold text-center mb-3 text-[#0A1124]">
+        <h1 className="text-3xl font-bold text-center mb-2 text-[#0A1124]">
           Welcome Back
         </h1>
-        <p className="text-center text-gray-600 mb-8">
-          Log in to your account to continue
+        <p className="text-center text-gray-500 text-sm mb-6">
+          Demo: demo@credora.test / Password123! (applicant) · admin@credora.test / Password123! (institution)
         </p>
 
         {/* User Type Selection */}
@@ -167,7 +166,7 @@ export default function LoginPage() {
                 }
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full ml-3 outline-none text-[#333] text-lg"
+                className="w-full ml-3 outline-none text-[#333] text-base"
                 disabled={loading}
               />
             </div>
@@ -179,7 +178,7 @@ export default function LoginPage() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full ml-3 outline-none text-[#333] text-lg"
+                className="w-full ml-3 outline-none text-[#333] text-base"
                 disabled={loading}
               />
             </div>
@@ -212,7 +211,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#061525] text-white py-4 rounded-xl transition-all font-medium text-lg shadow-lg shadow-blue-200 disabled:opacity-70 flex items-center justify-center"
+            className="w-full bg-[#061525] text-white py-3.5 rounded-xl transition-all font-medium text-base shadow-lg shadow-blue-200 disabled:opacity-70 flex items-center justify-center"
           >
             {loading ? (
               <>
@@ -238,7 +237,7 @@ export default function LoginPage() {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 text-gray-700 py-4 rounded-xl hover:bg-gray-50 transition-colors text-lg disabled:opacity-70"
+            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 text-gray-700 py-3.5 rounded-xl hover:bg-gray-50 transition-colors text-base disabled:opacity-70"
           >
             <img
               src="https://www.google.com/favicon.ico"
@@ -258,7 +257,7 @@ export default function LoginPage() {
           </button>
 
           <div className="flex items-center justify-between mt-10 pt-5 border-t border-gray-200">
-            <p className="text-gray-600 text-lg">
+            <p className="text-gray-600 text-base">
               Don&apos;t have an account?{" "}
               <Link
                 href="/register"

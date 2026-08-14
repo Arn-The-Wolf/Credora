@@ -14,6 +14,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
+    document.cookie = `credora_token=${auth.token}; path=/; max-age=86400; SameSite=Lax`;
     if (pathname.startsWith("/admin") && auth.userType !== "institution") {
       router.replace("/dashboard");
     }

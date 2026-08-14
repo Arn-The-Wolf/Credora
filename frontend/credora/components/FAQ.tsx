@@ -49,7 +49,7 @@ const FAQ = () => {
           <button className="text-[#4B415F] border-2 border-[#4B415F] rounded-full py-1.5 px-5 text-sm font-medium uppercase tracking-wider bg-white">
             FAQs
           </button>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl text-[#061525] mt-4 leading-tight tracking-tight">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl text-[#061525] mt-4 leading-tight tracking-tight">
             Document Guideline FAQ Regarding Credora
           </h2>
         </div>
@@ -63,7 +63,7 @@ const FAQ = () => {
             >
               <button
                 onClick={() => toggleAccordion(index)}
-                className="w-full flex justify-between items-center px-6 py-4 text-left text-[#061525] font-medium text-lg sm:text-xl lg:text-2xl focus:outline-none bg-white"
+                className="w-full flex justify-between items-center px-6 py-4 text-left text-[#061525] font-medium text-base sm:text-lg focus:outline-none bg-white"
               >
                 <span className="pr-6">{faq.question}</span>
                 <span className="flex-shrink-0 bg-[#4B415F] text-white rounded-full p-2">
@@ -80,7 +80,7 @@ const FAQ = () => {
                 }`}
               >
                 <div className="px-6 py-4 bg-white">
-                  <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
+                  <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
                     {faq.answer}
                   </p>
                 </div>

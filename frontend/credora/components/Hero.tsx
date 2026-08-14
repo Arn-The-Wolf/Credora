@@ -127,7 +127,7 @@ const Hero = () => {
                   TRUSTED BY THOUSANDS OF CUSTOMERS
                 </div>
 
-                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 drop-shadow-lg tracking-tight leading-[1.2]">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-5 drop-shadow-lg tracking-tight leading-[1.2]">
                   Design Your Loan with{" "}
                   <span className="text-white relative inline-block">
                     the Experts
@@ -135,7 +135,7 @@ const Hero = () => {
                   </span>
                 </h1>
 
-                <p className="text-base sm:text-lg md:text-xl lg:text-2xl mb-8 text-gray-200 drop-shadow-md max-w-3xl mx-auto leading-relaxed">
+                <p className="text-sm sm:text-base md:text-lg mb-7 text-gray-200 drop-shadow-md max-w-3xl mx-auto leading-relaxed">
                   At Credora, we leverage AI technology to manage your finances and loans effectively, supporting you
                   every step of the way.
                 </p>
@@ -257,7 +257,7 @@ const Hero = () => {
                 />
               </svg>
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold text-[#061525] drop-shadow-sm">5% Interest Rate</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-[#061525] drop-shadow-sm">5% Interest Rate</h2>
           </div>
           <p className="text-gray-600 text-base leading-relaxed drop-shadow-sm mb-4">
             Discover our dependable loan solutions designed to empower your financial journey with competitive rates and

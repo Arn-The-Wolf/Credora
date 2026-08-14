@@ -71,7 +71,7 @@ public class AuthService {
         user.setEmploymentStatus(req.getEmploymentStatus());
         user.setMonthlyIncome(parseDecimal(req.getMonthlyIncome()));
         user.setIdPassportNumber(req.getIdPassportNumber());
-        user.setEmailVerified(false);
+        user.setEmailVerified(!requireEmailVerification);
         user.setTermsAcceptedAt(Instant.now());
         user.setPrivacyAcceptedAt(Instant.now());
         user = userRepository.save(user);
@@ -83,7 +83,10 @@ public class AuthService {
         emailService.sendVerificationEmail(user.getEmail(), verifyToken);
 
         auditService.log("APPLICANT", user.getId(), user.getEmail(), "SIGNUP", "USER", user.getId(), null);
-        return new AuthDtos.MessageResponse("Account created. Check your email to verify before signing in.");
+        if (requireEmailVerification) {
+            return new AuthDtos.MessageResponse("Account created. Check your email to verify before signing in.");
+        }
+        return new AuthDtos.MessageResponse("Account created. You can sign in now.");
     }
 
     @Transactional

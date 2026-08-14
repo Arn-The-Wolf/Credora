@@ -27,10 +27,10 @@ function WeAre() {
             WHO WE ARE
           </button>
           <div className="space-y-4 mt-4">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 leading-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 leading-tight">
               Flexible, Quick, and Fast Business Loans
             </h1>
-            <p className="text-gray-600 text-base sm:text-lg md:text-xl leading-relaxed">
+            <p className="text-gray-600 text-sm sm:text-base md:text-lg leading-relaxed">
               Get the funding you need with our flexible and quick business loans.
               Tailored to meet your unique needs, our loans offer competitive
               rates and fast approval. Empower your business to grow and thrive

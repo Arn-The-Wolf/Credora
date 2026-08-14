@@ -11,7 +11,7 @@ const Services = () => {
       </div>
 
       {/* Title */}
-      <h1 className="text-[#061525] font-bold text-4xl text-center mb-12">
+      <h1 className="text-[#061525] font-bold text-2xl sm:text-3xl text-center mb-10">
         Comprehensive financial solutions tailored to your needs
       </h1>
 
