@@ -418,11 +418,8 @@ async function handle(req: NextRequest, path: string[]) {
   return json({ message: `No handler for ${method} ${route}` }, 404);
 }
 
-async function withPath(
-  req: NextRequest,
-  ctx: { params: Promise<{ path: string[] }> | { path: string[] } }
-) {
-  const { path } = await Promise.resolve(ctx.params);
+async function withPath(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
+  const { path } = await ctx.params;
   return handle(req, path || []);
 }
 
